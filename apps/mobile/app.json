@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "ProductScroll",
+    "slug": "productscroll",
+    "scheme": "productscroll",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose product photos and demos to share with ProductScroll."
+        }
+      ],
+      "expo-video"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.productscroll.mobile"
+    },
+    "android": {
+      "package": "app.productscroll.mobile",
+      "predictiveBackGestureEnabled": true
+    },
+    "web": { "bundler": "metro" }
+  }
+}

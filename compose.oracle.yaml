@@ -1,0 +1,101 @@
+name: productscroll
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: productscroll
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD}
+      POSTGRES_DB: productscroll
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U productscroll -d productscroll"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      target: api
+    env_file: .env.production
+    environment:
+      API_PORT: 4000
+      API_HOST: 0.0.0.0
+      NODE_ENV: production
+      DATABASE_URL: postgresql://productscroll:${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD}@postgres:5432/productscroll?schema=public
+      REDIS_URL: redis://redis:6379
+      MEDIA_DRIVER: r2
+    expose: ["4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    init: true
+
+  worker:
+    build:
+      context: .
+      target: worker
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://productscroll:${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD}@postgres:5432/productscroll?schema=public
+      REDIS_URL: redis://redis:6379
+      MEDIA_DRIVER: r2
+      MEDIA_DIR: /app/work/media
+      WORKER_QUEUES: default,media,events,fanout
+      WORKER_MEDIA_CONCURRENCY: 1
+    volumes:
+      - worker-scratch:/app/work/media
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 120s
+
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Set an API domain with a DNS A record pointing to this VM}
+      ACME_EMAIL: ${ACME_EMAIL:?Set an email for TLS certificate notices}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  worker-scratch:
+  caddy-data:
+  caddy-config:

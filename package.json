@@ -1,0 +1,41 @@
+{
+  "name": "productscroll",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @productscroll/api --filter @productscroll/web --filter @productscroll/worker dev",
+    "dev:web": "pnpm --filter @productscroll/web dev",
+    "dev:api": "pnpm --filter @productscroll/api dev",
+    "dev:worker": "pnpm --filter @productscroll/worker dev",
+    "dev:mobile": "pnpm --filter @productscroll/mobile start",
+    "db:generate": "pnpm --filter @productscroll/database generate",
+    "db:migrate": "pnpm --filter @productscroll/database migrate",
+    "db:seed": "pnpm media:seed && pnpm --filter @productscroll/database seed",
+    "db:validate": "dotenv -e .env -- pnpm --filter @productscroll/database validate",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:integration": "dotenv -e .env -- vitest run --config vitest.integration.config.ts",
+    "test:e2e": "dotenv -e .env -- playwright test",
+    "build": "dotenv -e .env -- env NODE_ENV=production pnpm -r --if-present build",
+    "media:seed": "dotenv -e .env -- node scripts/seed-media.mjs",
+    "format": "prettier --write apps packages tests scripts \"*.{json,ts,mjs,md,yaml}\"",
+    "test:system": "dotenv -e .env -- vitest run --config vitest.system.config.ts",
+    "postinstall": "node scripts/prepare-media-tools.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^22.19.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "^9.39.1",
+    "prettier": "^3.9.9",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vitest": "^3.2.4"
+  }
+}

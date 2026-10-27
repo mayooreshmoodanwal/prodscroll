@@ -1,0 +1,31 @@
+name: productscroll
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: productscroll
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-productscroll}
+      POSTGRES_DB: productscroll
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U productscroll -d productscroll"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["redis-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,0 +1,12 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX startup_search ON "Startup" USING GIN (to_tsvector('english',name || ' ' || pitch || ' ' || category));
+CREATE INDEX startup_name_trigram ON "Startup" USING GIN (name gin_trgm_ops);
+CREATE INDEX product_search ON "Product" USING GIN (to_tsvector('english',name || ' ' || description || ' ' || category));
+CREATE INDEX product_name_trigram ON "Product" USING GIN (name gin_trgm_ops);
+CREATE INDEX user_search ON "User" USING GIN (to_tsvector('simple',username || ' ' || "displayName"));
+CREATE INDEX username_trigram ON "User" USING GIN (username gin_trgm_ops);
+ALTER TABLE "UserFollow" ADD CONSTRAINT no_self_follow CHECK ("followerId" <> "followingId");
+ALTER TABLE "Block" ADD CONSTRAINT no_self_block CHECK ("blockerId" <> "blockedId");
+ALTER TABLE "Save" ADD CONSTRAINT save_exactly_one_target CHECK (num_nonnulls("postId","startupId","productId")=1);
+ALTER TABLE "Post" ADD CONSTRAINT nonnegative_counters CHECK ("likeCount">=0 AND "saveCount">=0 AND "commentCount">=0);
+ALTER TABLE "MediaAsset" ADD CONSTRAINT valid_file_size CHECK ("fileSizeBytes">0 AND "fileSizeBytes"<=104857600);

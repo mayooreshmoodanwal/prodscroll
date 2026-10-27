@@ -1,0 +1,27 @@
+{
+  "name": "@productscroll/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "dotenv -e ../../.env -- next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hls.js": "^1.7.3",
+    "lucide-react": "^0.468.0",
+    "next": "~16.3.8",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@productscroll/types": "workspace:*",
+    "@productscroll/api-client": "workspace:*",
+    "@productscroll/analytics": "workspace:*",
+    "@productscroll/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.2"
+  }
+}

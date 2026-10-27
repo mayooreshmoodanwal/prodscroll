@@ -1,0 +1,26 @@
+{
+  "name": "@productscroll/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- tsx watch src/index.ts",
+    "start": "dotenv -e ../../.env -- tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.922.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@productscroll/database": "workspace:*",
+    "bullmq": "^5.65.0",
+    "ioredis": "^5.8.2",
+    "nodemailer": "^10.0.9",
+    "sharp": "^0.35.5",
+    "@productscroll/config": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.4"
+  }
+}
