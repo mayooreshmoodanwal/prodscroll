@@ -26,7 +26,7 @@ services:
       - key: TRUST_PROXY
         value: "true"
       - key: MEDIA_DRIVER
-        value: r2
+        value: local
       - key: R2_UPLOAD_BUCKET
         value: productscroll-incoming
       - key: R2_MEDIA_BUCKET

@@ -42,7 +42,11 @@ export async function buildApp(
     throw new Error(
       "Production requires strong JWT_SECRET and SESSION_SECRET.",
     );
-  if (process.env.NODE_ENV === "production" && storageConfig().driver !== "r2")
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.MEDIA_DRIVER !== "local" &&
+    storageConfig().driver !== "r2"
+  )
     throw new Error(
       "Production media delivery requires MEDIA_DRIVER=r2 and the private delivery Worker.",
     );
