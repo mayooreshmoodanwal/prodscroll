@@ -1,0 +1,60 @@
+services:
+  - type: web
+    name: productscroll-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: productscroll-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: productscroll-redis
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TRUST_PROXY
+        value: "true"
+      - key: MEDIA_DRIVER
+        value: r2
+      - key: R2_UPLOAD_BUCKET
+        value: productscroll-incoming
+      - key: R2_MEDIA_BUCKET
+        value: productscroll-media
+      - key: WEB_ORIGIN
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_DELIVERY_URL
+        sync: false
+      - key: MEDIA_DELIVERY_SECRET
+        sync: false
+
+  - type: keyvalue
+    name: productscroll-redis
+    plan: free
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: productscroll-db
+    plan: free
+    region: oregon
+    databaseName: productscroll
+    user: productscroll
