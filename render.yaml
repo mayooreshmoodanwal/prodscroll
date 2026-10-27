@@ -51,6 +51,7 @@ services:
     plan: free
     region: oregon
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
 
 databases:
   - name: productscroll-db
@@ -58,3 +59,4 @@ databases:
     region: oregon
     databaseName: productscroll
     user: productscroll
+    ipAllowList: []
