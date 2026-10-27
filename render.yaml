@@ -32,7 +32,7 @@ services:
       - key: R2_MEDIA_BUCKET
         value: productscroll-media
       - key: WEB_ORIGIN
-        sync: false
+        value: "https://prodscroll-mayooreshmoodanwals-projects.vercel.app,https://prodscroll.vercel.app"
       - key: PUBLIC_API_URL
         sync: false
       - key: R2_ACCOUNT_ID
