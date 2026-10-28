@@ -390,7 +390,14 @@ export function ProductPage({ slug }: { slug: string }) {
           Made by {p.startup.name} <ArrowUpRight size={15} />
         </Link>
         <p className="profile-bio">{p.description}</p>
-        <ExternalLink href={p.website}>Try the product</ExternalLink>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "12px" }}>
+          {p.actions?.map((a) => (
+            <ExternalLink key={a.label} href={a.url}>
+              {a.label}
+            </ExternalLink>
+          ))}
+          {!p.actions?.length && <ExternalLink href={p.website}>Try the product</ExternalLink>}
+        </div>
       </section>
       <div className="section-row padded">
         <h2>From the people behind it</h2>

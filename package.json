@@ -16,6 +16,8 @@
     "db:migrate": "pnpm --filter @productscroll/database migrate",
     "db:seed": "pnpm media:seed && pnpm --filter @productscroll/database seed",
     "db:validate": "dotenv -e .env -- pnpm --filter @productscroll/database validate",
+    "discovery:run": "dotenv -e .env -- tsx scripts/run-discovery.ts",
+    "discovery:dry-run": "dotenv -e .env -- tsx scripts/run-discovery.ts --dry-run",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "test": "vitest run",

@@ -64,13 +64,7 @@ export const presentPost = (p: PostRecord) => ({
         following: p.startup.followers.length > 0,
       }
     : null,
-  product: p.product
-    ? {
-        ...p.product,
-        imageUrl: mediaUrl(p.product.imageUrl),
-        startup: presentStartup(p.product.startup),
-      }
-    : null,
+  product: p.product ? presentProduct(p.product) : null,
   media: p.media.map(({ media: m }) => ({
     id: m.id,
     mediaType: m.mediaType,
@@ -100,8 +94,21 @@ export const productInclude = {
 } satisfies Prisma.ProductInclude;
 export const presentProduct = (
   p: Prisma.ProductGetPayload<{ include: typeof productInclude }>,
-) => ({
-  ...p,
-  imageUrl: mediaUrl(p.imageUrl),
-  startup: presentStartup(p.startup),
-});
+) => {
+  let actions: Array<{ type: string; label: string; url: string }> = [];
+  try {
+    if (p.releaseNotes) {
+      const parsed = JSON.parse(p.releaseNotes);
+      if (Array.isArray(parsed.actions)) actions = parsed.actions;
+    }
+  } catch {}
+  if (!actions.length && p.website) {
+    actions.push({ type: "website", label: "Visit Website", url: p.website });
+  }
+  return {
+    ...p,
+    actions,
+    imageUrl: mediaUrl(p.imageUrl),
+    startup: presentStartup(p.startup),
+  };
+};

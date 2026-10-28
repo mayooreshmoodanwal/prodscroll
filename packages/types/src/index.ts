@@ -48,6 +48,8 @@ export interface Product {
   status: string;
   category: string;
   startup: Startup;
+  actions?: Array<{ type: string; label: string; url: string }>;
+  releaseNotes?: string;
 }
 export interface Media {
   id: string;

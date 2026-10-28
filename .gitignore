@@ -18,3 +18,4 @@ playwright-report/
 .pnpm-store/
 .vercel
 .env*
+*founder-onboarding*.csv

@@ -4,6 +4,9 @@ set -e
 echo "[Render Startup] Running database migrations..."
 pnpm db:migrate || echo "[Render Startup] Warning: db:migrate exited with non-zero status"
 
+echo "[Render Startup] Running autonomous product discovery seed..."
+pnpm discovery:run || echo "[Render Startup] Warning: discovery:run exited with non-zero status"
+
 echo "[Render Startup] Starting background worker..."
 pnpm --filter @productscroll/worker start &
 WORKER_PID=$!

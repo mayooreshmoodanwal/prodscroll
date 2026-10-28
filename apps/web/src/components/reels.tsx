@@ -35,12 +35,31 @@ function ReelCard({
   onMute: (muted: boolean) => void;
 }) {
   const [comments, setComments] = useState(false),
-    [expanded, setExpanded] = useState(false);
+    [expanded, setExpanded] = useState(false),
+    [showActions, setShowActions] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const following = post.startup?.following || false;
   const busy = useRef(false);
   const followBusy = useRef(false);
   const { requireAuth, toast, user } = useApp();
   const media = post.media.find((m) => m.mediaType === "VIDEO");
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    touchStartX.current = null;
+    touchStartY.current = null;
+    if (deltaX > 50 && deltaY < 40) {
+      setShowActions(true);
+    }
+  }
   async function toggle(kind: "like" | "save", force?: boolean) {
     if (!requireAuth() || busy.current) return;
     const before = post,
@@ -131,7 +150,11 @@ function ReelCard({
   }
   return (
     <div className="reel-stage">
-      <div className="reel-canvas">
+      <div
+        className="reel-canvas"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {media && (
           <ReelPlayer
             media={media}
@@ -192,15 +215,108 @@ function ReelCard({
             {post.caption}
           </button>
           {post.product && (
-            <Link
-              className="reel-product"
-              href={`/product/${post.product.slug}`}
-            >
-              {post.product.name}
-              <ArrowUpRight size={15} />
-            </Link>
+            <div className="reel-action-bar">
+              {post.product.actions?.slice(0, 2).map((a) => (
+                <a
+                  key={a.label}
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="reel-action-pill primary"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {a.label} <ArrowUpRight size={13} />
+                </a>
+              ))}
+              <button
+                className="reel-action-pill"
+                onClick={() => setShowActions(true)}
+                aria-label="View verified product actions"
+              >
+                Actions ➔
+              </button>
+            </div>
           )}
         </div>
+        {showActions && (
+          <div
+            className="reel-action-drawer-overlay"
+            onClick={() => setShowActions(false)}
+          >
+            <div
+              className="reel-action-drawer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="reel-drawer-header">
+                <div>
+                  <span className="reel-drawer-badge">
+                    🔍 DISCOVERED BY PRODGRAM
+                  </span>
+                  <h3>{post.product?.name || post.startup?.name}</h3>
+                </div>
+                <button
+                  className="reel-drawer-close"
+                  onClick={() => setShowActions(false)}
+                  aria-label="Close actions"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                {post.product?.description || post.startup?.pitch}
+              </p>
+
+              <div className="reel-drawer-actions">
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: "1px" }}>
+                  VERIFIED PRODUCT ACTIONS
+                </span>
+                {post.product?.actions?.map((a) => (
+                  <a
+                    key={a.label}
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="reel-drawer-btn primary"
+                  >
+                    <span>{a.label}</span>
+                    <ArrowUpRight size={16} />
+                  </a>
+                ))}
+                {post.product && (
+                  <Link
+                    href={`/product/${post.product.slug}`}
+                    className="reel-drawer-btn"
+                    onClick={() => setShowActions(false)}
+                  >
+                    <span>View Product Profile</span>
+                    <ArrowUpRight size={16} />
+                  </Link>
+                )}
+                {post.startup && (
+                  <Link
+                    href={`/startup/${post.startup.slug}`}
+                    className="reel-drawer-btn"
+                    onClick={() => setShowActions(false)}
+                  >
+                    <span>Company Journey</span>
+                    <ArrowUpRight size={16} />
+                  </Link>
+                )}
+              </div>
+
+              <div className="reel-drawer-claim">
+                <p>Are you the founder of {post.startup?.name || post.product?.name}?</p>
+                <Link
+                  href="/login"
+                  style={{ color: "#38bdf8", fontWeight: 600, textDecoration: "underline", marginTop: "4px", display: "inline-block" }}
+                >
+                  Claim official founder profile ➔
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="reel-actions">
           <button
             aria-label={post.liked ? "Unlike reel" : "Like reel"}

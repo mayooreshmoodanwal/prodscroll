@@ -322,4 +322,39 @@ export async function adminRoutes(app: FastifyInstance) {
     await audit(actor.id, "JOB_RETRY", id, "Manual retry requested.");
     return { ok: true };
   });
+  app.get("/admin/discovery/summary", async (req) => {
+    await requireRole(req, ["ADMIN", "MODERATOR"]);
+    const [products, startups, unclaimedFounders, reels] = await Promise.all([
+      db.product.count(),
+      db.startup.count(),
+      db.user.count({ where: { role: "FOUNDER", emailVerifiedAt: null } }),
+      db.post.count({ where: { kind: "REEL" } }),
+    ]);
+    return {
+      products,
+      startups,
+      unclaimedFounders,
+      reels,
+      threshold: 75,
+      sources: ["Hacker News Show HN", "GitHub Open Source", "Official Websites"],
+      productHuntStatus: "Skipped (Commercial API credentials required per terms)",
+    };
+  });
+  app.get("/admin/discovery/unclaimed", async (req) => {
+    await requireRole(req, ["ADMIN"]);
+    const items = await db.user.findMany({
+      where: { role: "FOUNDER", emailVerifiedAt: null },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        email: true,
+        createdAt: true,
+        startups: { select: { id: true, name: true, slug: true, website: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    return { items };
+  });
 }
