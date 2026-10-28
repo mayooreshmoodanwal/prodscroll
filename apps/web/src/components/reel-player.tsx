@@ -141,11 +141,8 @@ export function ReelPlayer({
         }}
         onPause={() => setPaused(true)}
         onError={() => {
-          const video = videoRef.current;
-          if (video && !video.src.includes("/media/discovered/cleancode.mp4")) {
-            video.src = "/media/discovered/cleancode.mp4";
-            video.load();
-            resume();
+          if (retry < 2) {
+            setRetry((r) => r + 1);
           } else {
             setError(true);
           }

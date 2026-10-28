@@ -3,31 +3,28 @@ import type { NormalizedCandidate } from "./types.js";
 export function generatePostCaption(candidate: NormalizedCandidate): string {
   const parts: string[] = [];
 
-  // Opening sentence with clear product identity
-  parts.push(`🔍 Discovered by Prodgram: ${candidate.productName}`);
-
-  // What it is and the problem it solves
-  if (candidate.pitch && candidate.pitch.toLowerCase() !== candidate.productName.toLowerCase()) {
+  // Authentic product pitch
+  if (candidate.pitch) {
     parts.push(candidate.pitch);
   }
 
-  // Core verified capability & audience
-  if (candidate.description && candidate.description.length > candidate.pitch.length + 10) {
+  // Authentic product overview
+  if (candidate.description && candidate.description !== candidate.pitch) {
     const cleanDesc = candidate.description.replace(/\r?\n+/g, " ").trim();
-    parts.push(cleanDesc.slice(0, 240) + (cleanDesc.length > 240 ? "…" : ""));
+    parts.push(cleanDesc.slice(0, 320) + (cleanDesc.length > 320 ? "…" : ""));
   }
 
-  // Canonical destination
-  parts.push(`Official link: ${candidate.canonicalUrl}`);
-
-  // Provenance statement
-  parts.push(`(Discovered via ${candidate.source === "hackernews" ? "Hacker News Show HN" : candidate.source === "github" ? "GitHub Open Source" : "Official Product Launch"})`);
+  // Destination link
+  if (candidate.canonicalUrl) {
+    parts.push(`Official link: ${candidate.canonicalUrl}`);
+  }
 
   return parts.join("\n\n");
 }
 
 export function generateReelCaption(candidate: NormalizedCandidate): string {
-  // Shorter, punchy caption for reel display
-  const pitch = candidate.pitch || `${candidate.productName} in ${candidate.category}`;
-  return `🔍 Discovered by Prodgram · ${candidate.productName}: ${pitch}. Swipe right or tap below to explore demo, docs, and direct links.`;
+  if (candidate.pitch && candidate.pitch.length > 20) {
+    return candidate.pitch;
+  }
+  return `${candidate.productName} — ${candidate.description ? candidate.description.slice(0, 140) : "Open source product built for modern developers."}`;
 }

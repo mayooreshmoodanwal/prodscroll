@@ -250,7 +250,7 @@ function ReelCard({
               <div className="reel-drawer-header">
                 <div>
                   <span className="reel-drawer-badge">
-                    🔍 DISCOVERED BY PRODGRAM
+                    VERIFIED PRODUCT
                   </span>
                   <h3>{post.product?.name || post.startup?.name}</h3>
                 </div>
