@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { stat, writeFile } from "node:fs/promises";
+import { stat, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { AUTHENTIC_PRODUCTS, type AuthenticProductDef } from "./authentic-catalog.js";
 import {
@@ -372,7 +372,7 @@ export async function runDiscoveryEngine(options: {
     }
   }
 
-  // Step 4: Export Private Founder Onboarding CSV
+  // Step 4: Export Private Founder Onboarding CSV (preserving & appending existing records)
   const csvPath = path.resolve(process.cwd(), "work/prodgram-founder-onboarding-private.csv");
   const csvHeaders = [
     "UID",
@@ -402,7 +402,27 @@ export async function runDiscoveryEngine(options: {
     "Outreach draft",
   ];
 
-  const csvRows = onboardingRecords.map((r) => [
+  // Map to hold unique records by product name
+  const existingMap = new Map<string, string[]>();
+
+  try {
+    const rawExisting = await readFile(csvPath, "utf8");
+    const rawLines = rawExisting.trim().split("\n");
+    if (rawLines.length > 1) {
+      for (let i = 1; i < rawLines.length; i++) {
+        const line = rawLines[i].trim();
+        if (!line) continue;
+        // The 4th column is product name
+        const match = line.match(/^[^,]+,[^,]+,[^,]+,("[^"]+"|[^,]+)/);
+        const prodKey = match ? match[1].replace(/^"|"$/g, "").toLowerCase() : `row_${i}`;
+        existingMap.set(prodKey, [line]);
+      }
+    }
+  } catch (err) {
+    // If file does not exist, ignore
+  }
+
+  const newRows = onboardingRecords.map((r) => [
     r.uid,
     JSON.stringify(r.founderName),
     JSON.stringify(r.startup),
@@ -430,7 +450,14 @@ export async function runDiscoveryEngine(options: {
     JSON.stringify(r.outreachDraft),
   ]);
 
-  const csvContent = [csvHeaders.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
+  // Overwrite or append with new authentic records
+  for (const r of newRows) {
+    const prodName = (r[3] as string).replace(/^"|"$/g, "").toLowerCase();
+    existingMap.set(prodName, [r.join(",")]);
+  }
+
+  const allMergedRows = Array.from(existingMap.values()).map((v) => v[0]);
+  const csvContent = [csvHeaders.join(","), ...allMergedRows].join("\n");
   await writeFile(csvPath, csvContent, "utf8");
 
   console.log(`\n======================================================`);

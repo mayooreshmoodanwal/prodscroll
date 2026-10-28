@@ -16,6 +16,20 @@ export const VERIFIED_MEDIA_SLUGS = [
   "freeze",
   "mods",
   "pop",
+  "lazydocker",
+  "glow",
+  "huh",
+  "bubbletea",
+  "bubbles",
+  "zoxide",
+  "gitui",
+  "bottom",
+  "dust",
+  "xh",
+  "hyperfine",
+  "croc",
+  "open-webui",
+  "crush",
 ];
 
 export async function generateProductMedia(
