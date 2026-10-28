@@ -318,12 +318,12 @@ export async function authRoutes(app: FastifyInstance) {
       return { success: true, message: "User not found or already deleted." };
     }
 
-    await db.authToken.deleteMany({ where: { userId: user.id } });
-    await db.session.deleteMany({ where: { userId: user.id } });
-    await db.userInterest.deleteMany({ where: { userId: user.id } });
-    await db.postLike.deleteMany({ where: { userId: user.id } });
-    await db.comment.deleteMany({ where: { authorId: user.id } });
-    await db.user.delete({ where: { id: user.id } });
+    try {
+      await db.user.delete({ where: { id: user.id } });
+    } catch (err) {
+      console.error("[Delete test user error]", err);
+      fail(500, "DELETE_FAILED", "Failed to delete user record.");
+    }
 
     await redis.del(`otp:verify:${user.email}`);
     await redis.del(`otp:reset:${user.email}`);
