@@ -1,9 +1,12 @@
 import { chmod } from "node:fs/promises";
-import ffmpeg from "../apps/worker/node_modules/@ffmpeg-installer/ffmpeg/index.js";
-import ffprobe from "../apps/worker/node_modules/@ffprobe-installer/ffprobe/index.js";
-// The published macOS ffprobe archive lacks its executable bit when lifecycle
-// scripts are disabled. Set it only on our two known dependency binaries.
-if (process.platform !== "win32") {
-  await chmod(ffmpeg.path, 0o755);
-  await chmod(ffprobe.path, 0o755);
+
+try {
+  const ffmpeg = await import("@ffmpeg-installer/ffmpeg");
+  const ffprobe = await import("@ffprobe-installer/ffprobe");
+  if (process.platform !== "win32") {
+    if (ffmpeg?.default?.path) await chmod(ffmpeg.default.path, 0o755);
+    if (ffprobe?.default?.path) await chmod(ffprobe.default.path, 0o755);
+  }
+} catch {
+  // Optional binary chmod - ignore if not installed or system binaries are used
 }

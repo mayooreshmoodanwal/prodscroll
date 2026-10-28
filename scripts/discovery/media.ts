@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import type { NormalizedCandidate } from "./types.js";
 
@@ -14,18 +14,22 @@ const PALETTES = [
 
 async function getSharp() {
   try {
-    const mod = await import("/Users/ayushkumarsingh/Desktop/ProductScroll/node_modules/.pnpm/sharp@0.35.5_@types+node@22.20.4/node_modules/sharp/dist/index.cjs");
-    return mod.default || mod;
-  } catch {
     const mod = await import("sharp");
     return mod.default || mod;
+  } catch {
+    try {
+      const mod = await import("../apps/worker/node_modules/sharp/lib/index.js");
+      return mod.default || mod;
+    } catch {
+      return null;
+    }
   }
 }
 
 async function getFfmpegPath(): Promise<string> {
   if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
   try {
-    const installer = await import("/Users/ayushkumarsingh/Desktop/ProductScroll/node_modules/.pnpm/@ffmpeg-installer+ffmpeg@1.1.0/node_modules/@ffmpeg-installer/ffmpeg/index.js");
+    const installer = await import("@ffmpeg-installer/ffmpeg");
     if (installer?.default?.path) return installer.default.path;
   } catch {}
   return "ffmpeg";
@@ -56,6 +60,34 @@ export async function generateProductMedia(
   const mp4Path = path.join(outputDir, `${slug}.mp4`);
   const webMp4Path = path.join(webPublicDir, `${slug}.mp4`);
   const webPngPath = path.join(webPublicDir, `${slug}.png`);
+
+  const publicUrl = `/media/discovered/${slug}.mp4`;
+  const thumbnailUrl = `/media/discovered/${slug}.png`;
+
+  // 1. If media already exists in webPublicDir or outputDir, reuse immediately
+  try {
+    const s = await stat(webMp4Path);
+    if (s.size > 1000) {
+      return {
+        videoPath: webMp4Path,
+        imagePath: webPngPath,
+        publicUrl,
+        thumbnailUrl,
+      };
+    }
+  } catch {}
+
+  try {
+    const s = await stat(mp4Path);
+    if (s.size > 1000) {
+      return {
+        videoPath: mp4Path,
+        imagePath: pngPath,
+        publicUrl,
+        thumbnailUrl,
+      };
+    }
+  } catch {}
 
   function escapeXml(str: string): string {
     return str
@@ -143,45 +175,49 @@ export async function generateProductMedia(
 
   await writeFile(svgPath, svg);
 
-  // Convert SVG to PNG using Sharp
-  const sharp = await getSharp();
-  await sharp(Buffer.from(svg)).png().toFile(pngPath);
-
-  // Copy PNG to web public directory
-  spawnSync("cp", [pngPath, webPngPath]);
-
-  // Generate 6-second MP4 reel with bundled ffmpeg
-  const ffmpeg = await getFfmpegPath();
-  const res = spawnSync(ffmpeg, [
-    "-y",
-    "-loglevel",
-    "error",
-    "-loop",
-    "1",
-    "-i",
-    pngPath,
-    "-t",
-    "6",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "ultrafast",
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart",
-    mp4Path,
-  ]);
-
-  if (res.status !== 0) {
-    console.warn(`[Media] ffmpeg status ${res.status}:`, res.stderr?.toString());
+  // Convert SVG to PNG using Sharp if available
+  try {
+    const sharp = await getSharp();
+    if (sharp) {
+      await sharp(Buffer.from(svg)).png().toFile(pngPath);
+      spawnSync("cp", [pngPath, webPngPath]);
+    }
+  } catch (err) {
+    console.warn(`[Media] Warning: could not rasterize svg to png:`, err);
   }
 
-  // Copy MP4 to web public directory
-  spawnSync("cp", [mp4Path, webMp4Path]);
+  // Generate 6-second MP4 reel with bundled ffmpeg if available
+  try {
+    const ffmpeg = await getFfmpegPath();
+    const res = spawnSync(ffmpeg, [
+      "-y",
+      "-loglevel",
+      "error",
+      "-loop",
+      "1",
+      "-i",
+      pngPath,
+      "-t",
+      "6",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      mp4Path,
+    ]);
 
-  const publicUrl = `/media/discovered/${slug}.mp4`;
-  const thumbnailUrl = `/media/discovered/${slug}.png`;
+    if (res.status === 0) {
+      spawnSync("cp", [mp4Path, webMp4Path]);
+    } else {
+      console.warn(`[Media] ffmpeg status ${res.status}:`, res.stderr?.toString());
+    }
+  } catch (err) {
+    console.warn(`[Media] Warning: could not encode mp4 with ffmpeg:`, err);
+  }
 
   return {
     videoPath: mp4Path,
