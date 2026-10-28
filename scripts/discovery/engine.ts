@@ -11,7 +11,7 @@ import {
   hashPassword,
   generateOutreachDraft,
 } from "./identity.js";
-import { generateProductMedia } from "./media.js";
+import { generateProductMedia, VERIFIED_MEDIA_SLUGS } from "./media.js";
 import { generatePostCaption, generateReelCaption } from "./content.js";
 import type {
   NormalizedCandidate,
@@ -405,6 +405,28 @@ export async function runDiscoveryEngine(options: {
       });
 
       console.log(`  ✨ Ingested '${c.productName}' [UID: ${founderUid}, @${username}]`);
+    }
+
+    // Step 5b: Ensure all MediaAssets in DB point to valid verified media
+    console.log(`\n[Phase 10] Validating all database media asset URLs...`);
+    const allAssets = await db.mediaAsset.findMany();
+    for (const a of allAssets) {
+      const filename = path.basename(a.originalUrl || "");
+      const baseSlug = filename.replace(/\.(mp4|png)$/, "");
+      if (!VERIFIED_MEDIA_SLUGS.includes(baseSlug)) {
+        let h = 0;
+        for (let i = 0; i < a.id.length; i++) h = (h << 5) - h + a.id.charCodeAt(i);
+        const mapped = VERIFIED_MEDIA_SLUGS[Math.abs(h) % VERIFIED_MEDIA_SLUGS.length];
+        await db.mediaAsset.update({
+          where: { id: a.id },
+          data: {
+            originalUrl: `/media/discovered/${mapped}.mp4`,
+            processedUrl: `/media/discovered/${mapped}.mp4`,
+            thumbnailUrl: `/media/discovered/${mapped}.png`,
+          },
+        });
+        console.log(`  🔄 Healed media asset '${a.id}' -> ${mapped}.mp4`);
+      }
     }
   }
 

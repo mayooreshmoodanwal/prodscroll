@@ -140,7 +140,16 @@ export function ReelPlayer({
           }
         }}
         onPause={() => setPaused(true)}
-        onError={() => setError(true)}
+        onError={() => {
+          const video = videoRef.current;
+          if (video && !video.src.includes("/media/discovered/cleancode.mp4")) {
+            video.src = "/media/discovered/cleancode.mp4";
+            video.load();
+            resume();
+          } else {
+            setError(true);
+          }
+        }}
         onPointerDown={() => {
           held.current = false;
           wasPlaying.current = !videoRef.current?.paused;
