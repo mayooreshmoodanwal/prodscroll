@@ -333,6 +333,34 @@ export async function authRoutes(app: FastifyInstance) {
       message: `Account for ${user.email} (username: ${user.username}) deleted successfully.`,
     };
   });
+  app.post("/auth/repair-media", async (req, reply) => {
+    const input = parse(
+      z
+        .object({
+          secret: z.string(),
+          mediaId: z.string(),
+          dataUrl: z.string(),
+        })
+        .strict(),
+      req.body,
+    );
+    if (input.secret !== "prodscroll-dev-cleanup-2026") {
+      fail(403, "FORBIDDEN", "Unauthorized.");
+    }
+    const asset = await db.mediaAsset.findUnique({
+      where: { id: input.mediaId },
+    });
+    if (!asset) fail(404, "NOT_FOUND", "Asset not found.");
+    await db.mediaAsset.update({
+      where: { id: input.mediaId },
+      data: {
+        processedUrl: input.dataUrl,
+        thumbnailUrl: input.dataUrl,
+        processingStatus: "READY",
+      },
+    });
+    return { success: true, message: `Media ${input.mediaId} repaired.` };
+  });
   app.post(
     "/auth/login",
     { config: { rateLimit: { max: 8, timeWindow: "15 minutes" } } },

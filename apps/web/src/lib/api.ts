@@ -56,6 +56,7 @@ export function ago(value: string) {
 }
 export function safeUrl(value?: string) {
   if (!value) return undefined;
+  if (value.startsWith("data:") || value.startsWith("blob:")) return value;
   try {
     if (value.startsWith("http://localhost:4000/media") || value.startsWith("http://localhost:4180/media")) {
       return value.replace(/^http:\/\/localhost:\d+\/media/, "https://productscroll-api.onrender.com/media");

@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { storageConfig } from "@productscroll/config";
 export function mediaUrl(value: string | null | undefined) {
-  if (!value) return value;
+  if (!value || value.startsWith("data:") || value.startsWith("blob:")) return value;
   const config = storageConfig();
   if (value.startsWith("http://localhost:4000/media") || value.startsWith("http://localhost:4180/media")) {
     const publicMedia =

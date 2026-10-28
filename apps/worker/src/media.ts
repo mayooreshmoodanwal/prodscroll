@@ -116,6 +116,8 @@ export async function processMedia(assetId: string) {
       height = 0,
       durationMs: number | undefined;
     let processed = "image.webp";
+    let imageBuffer: Buffer | null = null;
+    let posterBuffer: Buffer | null = null;
     if (asset.mediaType === "IMAGE") {
       const image = sharp(input, {
         limitInputPixels: 40000000,
@@ -130,21 +132,42 @@ export async function processMedia(assetId: string) {
         throw new Error("Unsupported or malformed image");
       width = Math.min(1920, metadata.width);
       height = Math.round((metadata.height * width) / metadata.width);
-      await image
-        .rotate()
-        .resize({
-          width: 1920,
-          height: 1920,
-          fit: "inside",
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 85 })
-        .toFile(path.join(directory, processed));
-      await sharp(input)
-        .rotate()
-        .resize(480, 480, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 70 })
-        .toFile(path.join(directory, "poster.webp"));
+      if (config.driver === "local") {
+        imageBuffer = await image
+          .rotate()
+          .resize({
+            width: 1200,
+            height: 1200,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 80 })
+          .toBuffer();
+        await writeFile(path.join(directory, processed), imageBuffer);
+
+        posterBuffer = await sharp(input)
+          .rotate()
+          .resize(480, 480, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 65 })
+          .toBuffer();
+        await writeFile(path.join(directory, "poster.webp"), posterBuffer);
+      } else {
+        await image
+          .rotate()
+          .resize({
+            width: 1920,
+            height: 1920,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp({ quality: 85 })
+          .toFile(path.join(directory, processed));
+        await sharp(input)
+          .rotate()
+          .resize(480, 480, { fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 70 })
+          .toFile(path.join(directory, "poster.webp"));
+      }
     } else {
       const metadata = JSON.parse(
         await command("ffprobe", [
@@ -299,8 +322,14 @@ export async function processMedia(assetId: string) {
       where: { id: asset.id },
       data: {
         processingStatus: "READY",
-        processedUrl: `${base}/${processed}`,
-        thumbnailUrl: `${base}/poster.webp`,
+        processedUrl:
+          config.driver === "local" && imageBuffer && imageBuffer.length < 1500000
+            ? `data:image/webp;base64,${imageBuffer.toString("base64")}`
+            : `${base}/${processed}`,
+        thumbnailUrl:
+          config.driver === "local" && posterBuffer && posterBuffer.length < 500000
+            ? `data:image/webp;base64,${posterBuffer.toString("base64")}`
+            : `${base}/poster.webp`,
         width,
         height,
         durationMs,
