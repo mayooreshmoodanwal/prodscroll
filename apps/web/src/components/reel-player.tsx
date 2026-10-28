@@ -107,6 +107,11 @@ export function ReelPlayer({
     };
   }, [active, preload]);
   useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = muted;
+    }
+  }, [muted]);
+  useEffect(() => {
     if (!active) return;
     track("FEED_IMPRESSION", { postId });
     const started = Date.now();

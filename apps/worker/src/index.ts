@@ -54,6 +54,26 @@ class LocalEmailProvider implements EmailProvider {
     );
   }
 }
+class ResendEmailProvider implements EmailProvider {
+  async send(to: string, subject: string, text: string) {
+    const key =
+      process.env.RESEND_API_KEY || "re_3X9D25Dh_FazAt4Eb58bM7AuCGKcF2sm4";
+    const from =
+      process.env.RESEND_FROM_EMAIL || "Prodgram <noreply@wishelier.in>";
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from, to: [to], subject, text }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("[Worker Resend Error]", res.status, err);
+    }
+  }
+}
 class SmtpEmailProvider implements EmailProvider {
   async send(to: string, subject: string, text: string) {
     await nodemailer
@@ -81,7 +101,7 @@ class LocalPushProvider implements PushProvider {
 export const emailProvider: EmailProvider =
   process.env.EMAIL_DRIVER === "smtp"
     ? new SmtpEmailProvider()
-    : new LocalEmailProvider();
+    : new ResendEmailProvider();
 export const pushProvider: PushProvider = new LocalPushProvider();
 async function processJob(job: Job, queueName: string) {
   const marker = `job:done:${queueName}:${job.id}`;

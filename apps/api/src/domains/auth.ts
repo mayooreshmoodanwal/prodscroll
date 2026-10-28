@@ -16,12 +16,16 @@ import {
   redis,
   parse,
 } from "../lib/core.js";
+import {
+  sendVerificationOtpEmail,
+  sendPasswordResetOtpEmail,
+} from "../lib/resend.js";
 const email = z
   .string()
   .email()
   .max(254)
   .transform((v) => v.toLowerCase());
-const password = z.string().min(12).max(128);
+const password = z.string().min(8).max(128);
 const production = process.env.NODE_ENV === "production";
 const cookie = {
   httpOnly: true,
@@ -52,6 +56,44 @@ async function issue(userId: string, req: FastifyRequest, reply: FastifyReply) {
     refreshToken: refresh,
   };
 }
+
+function generateOtp(): string {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function sendOtp(
+  userId: string,
+  address: string,
+  purpose: "VERIFY" | "RESET",
+) {
+  const otp = generateOtp();
+  const purposeKey = purpose === "VERIFY" ? "VERIFY_OTP" : "RESET_OTP";
+  await db.authToken.create({
+    data: {
+      userId,
+      tokenHash: hash(`${purposeKey}:${userId}:${otp}`),
+      purpose: purposeKey,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    },
+  });
+  await redis.set(
+    `otp:${purpose.toLowerCase()}:${address.toLowerCase()}`,
+    JSON.stringify({ userId, otp }),
+    "EX",
+    900,
+  );
+  try {
+    if (purpose === "VERIFY") {
+      await sendVerificationOtpEmail(address, otp);
+    } else {
+      await sendPasswordResetOtpEmail(address, otp);
+    }
+  } catch (err) {
+    console.error(`[Resend OTP ${purpose} Error]`, err);
+  }
+  return otp;
+}
+
 async function mailToken(userId: string, address: string, purpose: string) {
   const raw = token();
   await db.authToken.create({
@@ -118,6 +160,22 @@ export async function authRoutes(app: FastifyInstance) {
           .strict(),
         req.body,
       );
+
+      const existing = await db.user.findFirst({
+        where: {
+          OR: [{ email: input.email }, { username: input.username }],
+        },
+      });
+      if (existing) {
+        fail(
+          409,
+          "USER_EXISTS",
+          existing.email === input.email
+            ? "An account with this email already exists."
+            : "This username is already taken. Please choose another.",
+        );
+      }
+
       const user = await db.user.create({
         data: {
           email: input.email,
@@ -125,14 +183,110 @@ export async function authRoutes(app: FastifyInstance) {
           displayName: input.displayName,
           passwordHash: await hashPassword(input.password),
           role: input.role,
+          emailVerifiedAt: null,
         },
       });
-      await mailToken(user.id, user.email, "VERIFY");
+
+      await sendOtp(user.id, user.email, "VERIFY");
+
       return reply.code(201).send({
         user: publicUser(user),
-        ...(await issue(user.id, req, reply)),
+        email: user.email,
         verificationRequired: true,
       });
+    },
+  );
+  app.post(
+    "/auth/verify-otp",
+    { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } },
+    async (req, reply) => {
+      const input = parse(
+        z
+          .object({
+            email,
+            otp: z.string().regex(/^\d{6}$/, "Must be a 6-digit code"),
+          })
+          .strict(),
+        req.body,
+      );
+
+      const user = await db.user.findUnique({ where: { email: input.email } });
+      if (!user) {
+        fail(400, "INVALID_OTP", "Invalid or expired verification code.");
+      }
+
+      let valid = false;
+      const cached = await redis.get(`otp:verify:${user.email}`);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.otp === input.otp) {
+            valid = true;
+            await redis.del(`otp:verify:${user.email}`);
+          }
+        } catch {}
+      }
+
+      if (!valid) {
+        const tokenHash = hash(`VERIFY_OTP:${user.id}:${input.otp}`);
+        const record = await db.authToken.findFirst({
+          where: {
+            userId: user.id,
+            tokenHash,
+            purpose: "VERIFY_OTP",
+            consumedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+        });
+        if (!record) {
+          fail(400, "INVALID_OTP", "Invalid or expired verification code.");
+        }
+        valid = true;
+        await db.authToken.update({
+          where: { id: record.id },
+          data: { consumedAt: new Date() },
+        });
+      }
+
+      const updatedUser = await db.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+      });
+
+      const tokens = await issue(user.id, req, reply);
+      return {
+        user: publicUser(updatedUser),
+        ...tokens,
+      };
+    },
+  );
+  app.post(
+    "/auth/resend-otp",
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
+    async (req) => {
+      const input = parse(
+        z
+          .object({
+            email,
+            purpose: z.enum(["VERIFY", "RESET"]).default("VERIFY"),
+          })
+          .strict(),
+        req.body,
+      );
+
+      const user = await db.user.findUnique({ where: { email: input.email } });
+      if (!user) {
+        return {
+          ok: true,
+          message: "If an account exists with that email, a verification code has been sent.",
+        };
+      }
+
+      await sendOtp(user.id, user.email, input.purpose);
+      return {
+        ok: true,
+        message: "A new 6-digit verification code has been sent to your email.",
+      };
     },
   );
   app.post(
@@ -335,50 +489,123 @@ export async function authRoutes(app: FastifyInstance) {
   );
   app.post(
     "/auth/forgot-password",
-    { config: { rateLimit: { max: 3, timeWindow: "1 hour" } } },
+    { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } },
     async (req) => {
-      const input = parse(z.object({ email }), req.body);
+      const input = parse(z.object({ email }).strict(), req.body);
       const user = await db.user.findUnique({ where: { email: input.email } });
-      if (user) await mailToken(user.id, user.email, "RESET");
+      if (user) {
+        await sendOtp(user.id, user.email, "RESET");
+      }
       return {
         ok: true,
-        message: "If that email has an account, a reset link has been sent.",
+        email: input.email,
+        message: "If that email has an account, a 6-digit verification code has been sent.",
       };
     },
   );
   app.post("/auth/reset-password", async (req) => {
     const input = parse(
-      z.object({ token: z.string().min(20).max(200), password }),
+      z.union([
+        z
+          .object({
+            email,
+            otp: z.string().regex(/^\d{6}$/, "Must be a 6-digit code"),
+            password,
+          })
+          .strict(),
+        z
+          .object({
+            token: z.string().min(20).max(200),
+            password,
+          })
+          .strict(),
+      ]),
       req.body,
     );
+
     const passwordHash = await hashPassword(input.password);
-    await db.$transaction(async (tx) => {
-      const record = await tx.authToken.findUnique({
-        where: { tokenHash: hash(input.token) },
-      });
-      if (
-        !record ||
-        record.purpose !== "RESET" ||
-        record.consumedAt ||
-        record.expiresAt < new Date()
-      )
-        fail(400, "TOKEN_INVALID", "Reset link is expired or already used.");
-      const changed = await tx.authToken.updateMany({
-        where: { id: record.id, consumedAt: null },
-        data: { consumedAt: new Date() },
-      });
-      if (!changed.count)
-        fail(400, "TOKEN_INVALID", "This link has already been used.");
-      await tx.user.update({
-        where: { id: record.userId },
+
+    if ("otp" in input) {
+      const user = await db.user.findUnique({ where: { email: input.email } });
+      if (!user) {
+        fail(400, "INVALID_OTP", "Invalid or expired reset code.");
+      }
+
+      let valid = false;
+      const cached = await redis.get(`otp:reset:${user.email}`);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.otp === input.otp) {
+            valid = true;
+            await redis.del(`otp:reset:${user.email}`);
+          }
+        } catch {}
+      }
+
+      if (!valid) {
+        const tokenHash = hash(`RESET_OTP:${user.id}:${input.otp}`);
+        const record = await db.authToken.findFirst({
+          where: {
+            userId: user.id,
+            tokenHash,
+            purpose: "RESET_OTP",
+            consumedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+        });
+        if (!record) {
+          fail(400, "INVALID_OTP", "Invalid or expired reset code.");
+        }
+        valid = true;
+        await db.authToken.update({
+          where: { id: record.id },
+          data: { consumedAt: new Date() },
+        });
+      }
+
+      await db.user.update({
+        where: { id: user.id },
         data: { passwordHash },
       });
-      await tx.session.updateMany({
-        where: { userId: record.userId },
+      await db.session.updateMany({
+        where: { userId: user.id },
         data: { revokedAt: new Date() },
       });
-    });
-    return { ok: true };
+
+      return {
+        ok: true,
+        message: "Password reset successfully. Sign in with your new password.",
+      };
+    } else {
+      await db.$transaction(async (tx) => {
+        const record = await tx.authToken.findUnique({
+          where: { tokenHash: hash(input.token) },
+        });
+        if (
+          !record ||
+          record.purpose !== "RESET" ||
+          record.consumedAt ||
+          record.expiresAt < new Date()
+        )
+          fail(400, "TOKEN_INVALID", "Reset link is expired or already used.");
+        const changed = await tx.authToken.updateMany({
+          where: { id: record.id, consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+        if (!changed.count)
+          fail(400, "TOKEN_INVALID", "This link has already been used.");
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { passwordHash },
+        });
+        await tx.session.updateMany({
+          where: { userId: record.userId },
+          data: { revokedAt: new Date() },
+        });
+      });
+      return { ok: true, message: "Password reset successfully." };
+    }
   });
   app.post("/auth/ws-ticket", async (req) => {
     const user = await requireUser(req);

@@ -1,18 +1,65 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ChangeEvent } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, RotateCw } from "lucide-react";
 import { useApp } from "../lib/context";
 import { mutate, API_URL } from "../lib/api";
 import { useResource } from "../lib/hooks";
 import type { User } from "../lib/types";
 import { Modal, Spinner, PageHeading } from "./ui";
+
+function PasswordField({
+  name,
+  placeholder,
+  autoComplete,
+  minLength = 8,
+  required = true,
+  id,
+}: {
+  name: string;
+  placeholder?: string;
+  autoComplete?: string;
+  minLength?: number;
+  required?: boolean;
+  id?: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="password-input-wrapper">
+      <input
+        id={id}
+        name={name}
+        type={visible ? "text" : "password"}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        required={required}
+        minLength={minLength}
+        maxLength={128}
+      />
+      <button
+        type="button"
+        className="password-toggle-btn"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        tabIndex={-1}
+      >
+        {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
+
 export function AuthModal() {
   const { setAuthOpen, setUser, toast } = useApp();
   const providers = useResource<{ google: boolean }>("/auth/providers");
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login"),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+  const [mode, setMode] = useState<
+    "login" | "register" | "verify-otp" | "forgot" | "reset-otp"
+  >("login");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
+
   async function login(email: string, password: string) {
     const result = await mutate<{ user: User }>("/auth/login", {
       email,
@@ -22,29 +69,104 @@ export function AuthModal() {
     setAuthOpen(false);
     toast(`Welcome back, ${result.user.displayName.split(" ")[0]}.`);
   }
+
+  async function resendOtp(purpose: "VERIFY" | "RESET") {
+    const targetEmail = purpose === "VERIFY" ? pendingEmail : resetEmail;
+    if (!targetEmail) return;
+    setBusy(true);
+    setError("");
+    try {
+      await mutate("/auth/resend-otp", { email: targetEmail, purpose });
+      toast(`A new 6-digit verification code has been sent to ${targetEmail}`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
     const f = new FormData(event.currentTarget);
     try {
-      if (mode === "login")
+      if (mode === "login") {
         await login(String(f.get("email")), String(f.get("password")));
-      else if (mode === "forgot") {
-        await mutate("/auth/forgot-password", { email: f.get("email") });
-        toast("If that account exists, a reset link has been sent.");
-        setMode("login");
-      } else {
-        const result = await mutate<{ user: User }>("/auth/register", {
-          email: f.get("email"),
+      } else if (mode === "register") {
+        const passwordVal = String(f.get("password") || "");
+        const confirmVal = String(f.get("confirmPassword") || "");
+        if (passwordVal.length < 8) {
+          setError("Password must be at least 8 characters long.");
+          setBusy(false);
+          return;
+        }
+        if (passwordVal !== confirmVal) {
+          setError("Passwords do not match. Please verify both password fields.");
+          setBusy(false);
+          return;
+        }
+        const userEmail = String(f.get("email")).toLowerCase().trim();
+        const result = await mutate<{
+          user: User;
+          email: string;
+          verificationRequired?: boolean;
+        }>("/auth/register", {
+          email: userEmail,
           username: f.get("username"),
           displayName: f.get("displayName"),
-          password: f.get("password"),
+          password: passwordVal,
           role: f.get("role"),
+        });
+        setPendingEmail(userEmail);
+        setMode("verify-otp");
+        toast(`Verification code sent to ${userEmail}`);
+      } else if (mode === "verify-otp") {
+        const otpVal = String(f.get("otp")).trim();
+        if (!/^\d{6}$/.test(otpVal)) {
+          setError("Please enter the 6-digit numeric verification code.");
+          setBusy(false);
+          return;
+        }
+        const result = await mutate<{ user: User }>("/auth/verify-otp", {
+          email: pendingEmail,
+          otp: otpVal,
         });
         setUser(result.user);
         setAuthOpen(false);
-        toast("Account created. Check your email to verify your account.");
+        toast("Email verified! Welcome to Prodgram.");
+      } else if (mode === "forgot") {
+        const emailVal = String(f.get("email")).toLowerCase().trim();
+        await mutate("/auth/forgot-password", { email: emailVal });
+        setResetEmail(emailVal);
+        setMode("reset-otp");
+        toast(`A 6-digit reset code has been sent to ${emailVal}`);
+      } else if (mode === "reset-otp") {
+        const otpVal = String(f.get("otp")).trim();
+        const passwordVal = String(f.get("password") || "");
+        const confirmVal = String(f.get("confirmPassword") || "");
+        if (!/^\d{6}$/.test(otpVal)) {
+          setError("Please enter the 6-digit numeric verification code.");
+          setBusy(false);
+          return;
+        }
+        if (passwordVal.length < 8) {
+          setError("New password must be at least 8 characters long.");
+          setBusy(false);
+          return;
+        }
+        if (passwordVal !== confirmVal) {
+          setError("Passwords do not match. Please verify both password fields.");
+          setBusy(false);
+          return;
+        }
+        await mutate("/auth/reset-password", {
+          email: resetEmail,
+          otp: otpVal,
+          password: passwordVal,
+        });
+        toast("Password updated successfully! Please sign in with your new password.");
+        setMode("login");
       }
     } catch (e) {
       setError((e as Error).message);
@@ -52,20 +174,30 @@ export function AuthModal() {
       setBusy(false);
     }
   }
+
+  const modalTitle =
+    mode === "login"
+      ? "Good to see you."
+      : mode === "register"
+        ? "Stay curious. Join in."
+        : mode === "verify-otp"
+          ? "Verify your email"
+          : mode === "forgot"
+            ? "Reset your password"
+            : "Create new password";
+
   return (
-    <Modal
-      title={
-        mode === "login"
-          ? "Good to see you."
-          : mode === "register"
-            ? "Stay curious. Join in."
-            : "Reset your password"
-      }
-      onClose={() => setAuthOpen(false)}
-    >
+    <Modal title={modalTitle} onClose={() => setAuthOpen(false)}>
       <p className="muted">
-        Discover the ideas and people building what comes next.
+        {mode === "verify-otp"
+          ? `Enter the 6-digit code sent to ${pendingEmail}`
+          : mode === "reset-otp"
+            ? `Enter the 6-digit code sent to ${resetEmail} and choose a new password.`
+            : mode === "forgot"
+              ? "We’ll send a 6-digit verification code to your email."
+              : "Discover the ideas and people building what comes next."}
       </p>
+
       <form onSubmit={submit} className="form">
         {mode === "register" && (
           <>
@@ -77,6 +209,7 @@ export function AuthModal() {
                 required
                 minLength={2}
                 maxLength={60}
+                placeholder="Maya Lin"
               />
             </label>
             <label>
@@ -86,7 +219,7 @@ export function AuthModal() {
                 autoComplete="username"
                 required
                 pattern="[a-z0-9_]{3,24}"
-                placeholder="your_name"
+                placeholder="mayalin"
               />
             </label>
             <label>
@@ -98,31 +231,113 @@ export function AuthModal() {
             </label>
           </>
         )}
-        <label>
-          Email
-          <input name="email" type="email" autoComplete="email" required />
-        </label>
-        {mode !== "forgot" && (
+
+        {(mode === "login" || mode === "register" || mode === "forgot") && (
           <label>
-            Password
+            Email
             <input
-              name="password"
-              type="password"
-              autoComplete={
-                mode === "login" ? "current-password" : "new-password"
-              }
+              name="email"
+              type="email"
+              autoComplete="email"
               required
-              minLength={mode === "register" ? 12 : 1}
-              maxLength={128}
+              placeholder="you@example.com"
+              defaultValue={mode === "forgot" ? resetEmail : undefined}
             />
-            {mode === "register" && <small>Use at least 12 characters.</small>}
           </label>
         )}
+
+        {(mode === "verify-otp" || mode === "reset-otp") && (
+          <label>
+            6-Digit Verification Code
+            <input
+              name="otp"
+              className="otp-input-field"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              required
+              autoFocus
+              placeholder="123456"
+            />
+            <div className="otp-meta">
+              <span>Code expires in 15 minutes</span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() =>
+                  void resendOtp(mode === "verify-otp" ? "VERIFY" : "RESET")
+                }
+              >
+                Resend code
+              </button>
+            </div>
+          </label>
+        )}
+
+        {mode === "login" && (
+          <label>
+            Password
+            <PasswordField
+              name="password"
+              autoComplete="current-password"
+              minLength={1}
+            />
+          </label>
+        )}
+
+        {mode === "register" && (
+          <>
+            <label>
+              Password
+              <PasswordField
+                name="password"
+                autoComplete="new-password"
+                minLength={8}
+              />
+              <small>Use at least 8 characters.</small>
+            </label>
+            <label>
+              Confirm password
+              <PasswordField
+                name="confirmPassword"
+                autoComplete="new-password"
+                minLength={8}
+                placeholder="Re-enter password"
+              />
+            </label>
+          </>
+        )}
+
+        {mode === "reset-otp" && (
+          <>
+            <label>
+              New password
+              <PasswordField
+                name="password"
+                autoComplete="new-password"
+                minLength={8}
+              />
+              <small>Use at least 8 characters.</small>
+            </label>
+            <label>
+              Confirm new password
+              <PasswordField
+                name="confirmPassword"
+                autoComplete="new-password"
+                minLength={8}
+                placeholder="Re-enter new password"
+              />
+            </label>
+          </>
+        )}
+
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
+
         <button className="button primary full" disabled={busy}>
           {busy ? (
             <Spinner />
@@ -130,15 +345,27 @@ export function AuthModal() {
             "Sign in"
           ) : mode === "register" ? (
             "Create account"
+          ) : mode === "verify-otp" ? (
+            "Verify email & continue"
+          ) : mode === "forgot" ? (
+            "Send verification code"
           ) : (
-            "Send reset link"
+            "Set new password"
           )}
           <ArrowRight size={16} />
         </button>
       </form>
+
       {mode === "login" && (
         <>
-          <button className="text-button" onClick={() => setMode("forgot")}>
+          <button
+            className="text-button"
+            style={{ marginTop: "12px", display: "inline-block" }}
+            onClick={() => {
+              setMode("forgot");
+              setError("");
+            }}
+          >
             Forgot password?
           </button>
           <div className="divider">or</div>
@@ -164,28 +391,75 @@ export function AuthModal() {
           </button>
         </>
       )}
-      <p className="auth-switch">
-        {mode === "register"
-          ? "Already part of the community?"
-          : "New to ProductScroll?"}{" "}
-        <button
-          className="text-button"
-          onClick={() => {
-            setMode(mode === "register" ? "login" : "register");
-            setError("");
-          }}
-        >
-          {mode === "register" ? "Sign in" : "Create an account"}
-        </button>
-      </p>
+
+      {mode === "verify-otp" && (
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <button
+            className="text-button"
+            onClick={() => {
+              setMode("register");
+              setError("");
+            }}
+          >
+            ← Back to sign up
+          </button>
+        </div>
+      )}
+
+      {mode === "forgot" && (
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <button
+            className="text-button"
+            onClick={() => {
+              setMode("login");
+              setError("");
+            }}
+          >
+            ← Back to sign in
+          </button>
+        </div>
+      )}
+
+      {mode === "reset-otp" && (
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <button
+            className="text-button"
+            onClick={() => {
+              setMode("forgot");
+              setError("");
+            }}
+          >
+            ← Request a different code
+          </button>
+        </div>
+      )}
+
+      {(mode === "login" || mode === "register") && (
+        <p className="auth-switch">
+          {mode === "register"
+            ? "Already part of the community?"
+            : "New to ProductScroll?"}{" "}
+          <button
+            className="text-button"
+            onClick={() => {
+              setMode(mode === "register" ? "login" : "register");
+              setError("");
+            }}
+          >
+            {mode === "register" ? "Sign in" : "Create an account"}
+          </button>
+        </p>
+      )}
     </Modal>
   );
 }
+
 export function Onboarding() {
   const { refreshUser, toast } = useApp();
   const { data } = useResource<{ items: string[] }>("/categories");
-  const [selected, setSelected] = useState<string[]>([]),
-    [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
   return (
     <Modal title="What sparks your curiosity?" onClose={() => undefined}>
       <p className="muted">
@@ -227,12 +501,14 @@ export function Onboarding() {
     </Modal>
   );
 }
+
 export function TokenPage({ kind }: { kind: string }) {
   const params = useSearchParams();
   const { refreshUser } = useApp();
-  const [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const token = params.get("token");
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -240,7 +516,10 @@ export function TokenPage({ kind }: { kind: string }) {
       const f = new FormData(event.currentTarget);
       await mutate(
         kind === "verify" ? "/auth/verify-email" : "/auth/reset-password",
-        { token, ...(kind === "reset" ? { password: f.get("password") } : {}) },
+        {
+          token,
+          ...(kind === "reset" ? { password: f.get("password") } : {}),
+        },
       );
       setMessage(
         kind === "verify"
@@ -254,6 +533,7 @@ export function TokenPage({ kind }: { kind: string }) {
       setBusy(false);
     }
   }
+
   return (
     <>
       <PageHeading
@@ -263,13 +543,12 @@ export function TokenPage({ kind }: { kind: string }) {
         {kind === "reset" && (
           <label>
             New password
-            <input
-              required
+            <PasswordField
               name="password"
-              type="password"
-              minLength={12}
-              maxLength={128}
+              minLength={8}
+              autoComplete="new-password"
             />
+            <small>Use at least 8 characters.</small>
           </label>
         )}
         <button disabled={busy || !token} className="button primary">
