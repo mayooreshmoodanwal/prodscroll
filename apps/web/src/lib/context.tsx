@@ -63,9 +63,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const connect = async () => {
       try {
         const { ticket } = await mutate<{ ticket: string }>("/auth/ws-ticket");
-        if (stopped) return;
+        const wsEndpoint = SOCKET_URL.endsWith("/ws")
+          ? SOCKET_URL
+          : SOCKET_URL.endsWith("/api")
+            ? `${SOCKET_URL}/ws`
+            : `${SOCKET_URL}/api/ws`;
         connection = new WebSocket(
-          `${SOCKET_URL}/ws?ticket=${encodeURIComponent(ticket)}`,
+          `${wsEndpoint}?ticket=${encodeURIComponent(ticket)}`,
         );
         connection.onopen = () => {
           attempt = 0;

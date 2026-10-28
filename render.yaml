@@ -34,7 +34,9 @@ services:
       - key: WEB_ORIGIN
         value: "https://prodscroll-mayooreshmoodanwals-projects.vercel.app,https://prodscroll.vercel.app"
       - key: PUBLIC_API_URL
-        sync: false
+        value: "https://productscroll-api.onrender.com"
+      - key: MEDIA_PUBLIC_URL
+        value: "https://productscroll-api.onrender.com/media"
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID

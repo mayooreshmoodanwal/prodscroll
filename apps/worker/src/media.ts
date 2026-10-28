@@ -265,7 +265,7 @@ export async function processMedia(assetId: string) {
     const base =
       config.driver === "r2"
         ? `${config.deliveryUrl}/${asset.id}`
-        : `${process.env.MEDIA_PUBLIC_URL || "http://localhost:4000/media"}/${asset.id}`;
+        : `${process.env.MEDIA_PUBLIC_URL || (process.env.PUBLIC_API_URL ? `${process.env.PUBLIC_API_URL.replace(/\/api\/?$/, "")}/media` : "https://productscroll-api.onrender.com/media")}/${asset.id}`;
     if (config.driver === "r2") {
       async function upload(directoryPath: string, prefix: string) {
         for (const item of await readdir(directoryPath, {

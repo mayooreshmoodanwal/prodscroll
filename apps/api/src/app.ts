@@ -238,6 +238,7 @@ export async function buildApp(
     },
     { prefix: "/api" },
   );
+  await messageRoutes(app);
   app.get("/api/openapi.json", async () => app.swagger());
   app.addHook("onClose", async () => {
     await jobs.close();
