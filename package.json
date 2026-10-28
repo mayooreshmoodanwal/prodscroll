@@ -14,6 +14,7 @@
     "dev:mobile": "pnpm --filter @productscroll/mobile start",
     "db:generate": "pnpm --filter @productscroll/database generate",
     "db:migrate": "pnpm --filter @productscroll/database migrate",
+    "db:studio": "npx -y prisma@6.19.0 studio --schema packages/database/prisma/schema.prisma",
     "db:seed": "pnpm media:seed && pnpm --filter @productscroll/database seed",
     "db:validate": "dotenv -e .env -- pnpm --filter @productscroll/database validate",
     "discovery:run": "dotenv -e .env -- tsx scripts/run-discovery.ts",

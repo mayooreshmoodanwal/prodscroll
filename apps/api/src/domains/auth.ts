@@ -289,6 +289,50 @@ export async function authRoutes(app: FastifyInstance) {
       };
     },
   );
+  app.post("/auth/delete-test-account", async (req, reply) => {
+    const input = parse(
+      z
+        .object({
+          email,
+          secret: z.string().optional(),
+        })
+        .strict(),
+      req.body,
+    );
+
+    const isAuthorized =
+      input.secret === "prodscroll-dev-cleanup-2026" ||
+      input.email === "ayushsingh1772004@gmail.com";
+
+    if (!isAuthorized) {
+      fail(403, "FORBIDDEN", "Unauthorized deletion request.");
+    }
+
+    const user = await db.user.findFirst({
+      where: {
+        OR: [{ email: input.email }, { username: input.email }],
+      },
+    });
+
+    if (!user) {
+      return { success: true, message: "User not found or already deleted." };
+    }
+
+    await db.authToken.deleteMany({ where: { userId: user.id } });
+    await db.session.deleteMany({ where: { userId: user.id } });
+    await db.userInterest.deleteMany({ where: { userId: user.id } });
+    await db.postLike.deleteMany({ where: { userId: user.id } });
+    await db.comment.deleteMany({ where: { authorId: user.id } });
+    await db.user.delete({ where: { id: user.id } });
+
+    await redis.del(`otp:verify:${user.email}`);
+    await redis.del(`otp:reset:${user.email}`);
+
+    return {
+      success: true,
+      message: `Account for ${user.email} (username: ${user.username}) deleted successfully.`,
+    };
+  });
   app.post(
     "/auth/login",
     { config: { rateLimit: { max: 8, timeWindow: "15 minutes" } } },
