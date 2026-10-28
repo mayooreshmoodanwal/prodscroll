@@ -32,7 +32,7 @@ services:
       - key: R2_MEDIA_BUCKET
         value: productscroll-media
       - key: WEB_ORIGIN
-        value: "https://prodscroll-mayooreshmoodanwals-projects.vercel.app,https://prodscroll.vercel.app"
+        value: "https://prod.ayushkumarsingh.in,https://prodscroll.vercel.app,https://prodscroll-mayooreshmoodanwals-projects.vercel.app"
       - key: PUBLIC_API_URL
         value: "https://productscroll-api.onrender.com"
       - key: MEDIA_PUBLIC_URL

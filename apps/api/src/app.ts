@@ -29,6 +29,27 @@ import { startupRoutes } from "./domains/startups.js";
 import { messageRoutes } from "./domains/messages.js";
 import { adminRoutes } from "./domains/admin.js";
 import { mediaRoutes, mediaRoot } from "./domains/media.js";
+export function isOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return true;
+  const configured = (process.env.WEB_ORIGIN || "http://localhost:3000")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const normalized = origin.trim().toLowerCase();
+  if (configured.includes(normalized)) return true;
+  try {
+    const { hostname, protocol } = new URL(normalized);
+    if (!["http:", "https:"].includes(protocol)) return false;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return true;
+    if (hostname.endsWith(".vercel.app")) return true;
+    if (hostname === "ayushkumarsingh.in" || hostname.endsWith(".ayushkumarsingh.in")) return true;
+    if (hostname === "wishelier.in" || hostname.endsWith(".wishelier.in")) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 export async function buildApp(
   options: { logger?: boolean; rateLimitNamespace?: string } = {},
 ) {
@@ -77,7 +98,13 @@ export async function buildApp(
   });
   await app.register(cookie);
   await app.register(cors, {
-    origin: (process.env.WEB_ORIGIN || "http://localhost:3000").split(","),
+    origin: (origin, cb) => {
+      if (isOriginAllowed(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error("CORS origin denied"), false);
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
@@ -131,11 +158,8 @@ export async function buildApp(
       reply.header("Cache-Control", "private, no-store");
     if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
       const origin = req.headers.origin;
-      const allowed = (process.env.WEB_ORIGIN || "http://localhost:3000").split(
-        ",",
-      );
       if (
-        (origin && !allowed.includes(origin)) ||
+        (origin && !isOriginAllowed(origin)) ||
         (req.cookies.ps_session && !origin && !req.headers.authorization)
       )
         throw new AppError(
