@@ -142,7 +142,9 @@ export function SettingsPage() {
   const [theme, setTheme] = useState("light"),
     [deleting, setDeleting] = useState(false),
     [password, setPassword] = useState("");
-  useEffect(() => setTheme(localStorage.getItem("ps-theme") || "light"), []);
+  useEffect(() => {
+    setTheme(localStorage.getItem("ps-theme") || "light");
+  }, []);
   async function updateProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);

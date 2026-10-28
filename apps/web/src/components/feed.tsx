@@ -185,7 +185,9 @@ export function PostCard({
     [collectionModal, setCollectionModal] = useState(false),
     [slide, setSlide] = useState(0);
   const { requireAuth, user, toast } = useApp();
-  useEffect(() => setPost(initial), [initial]);
+  useEffect(() => {
+    setPost(initial);
+  }, [initial]);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -542,10 +544,9 @@ export function Comments({
     [reply, setReply] = useState<Comment | null>(null),
     [sending, setSending] = useState(false);
   const { user, requireAuth, toast } = useApp();
-  useEffect(
-    () => setBody(sessionStorage.getItem(`comment:${post.id}`) || ""),
-    [post.id],
-  );
+  useEffect(() => {
+    setBody(sessionStorage.getItem(`comment:${post.id}`) || "");
+  }, [post.id]);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!requireAuth()) return;

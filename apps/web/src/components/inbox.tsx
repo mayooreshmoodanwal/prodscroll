@@ -48,8 +48,9 @@ export function Inbox() {
       : null,
   );
   const end = useRef<HTMLDivElement>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const current = conversations.data?.items.find((c) => c.id === selected);
-  const recipient = current?.members.find((m) => m.id !== user?.id);
+  const recipient = current?.members?.find((m) => m.id !== user?.id);
   useEffect(() => {
     if (params.get("conversation")) setSelected(params.get("conversation")!);
   }, [params]);
@@ -59,6 +60,11 @@ export function Inbox() {
       void mutate(`/conversations/${selected}/read`, {}).catch(() => undefined);
     }
   }, [selected, user?.id]);
+  useEffect(() => {
+    return () => {
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+    };
+  }, []);
   useEffect(() => {
     if (socketEvent?.type === "message") {
       void conversations.load();
@@ -73,7 +79,11 @@ export function Inbox() {
                   ...previous.items.filter((m) => m.id !== message.id),
                 ],
               }
-            : null,
+            : {
+                items: [message],
+                nextCursor: null,
+                hasMore: false,
+              },
         );
         void mutate(`/conversations/${selected}/read`, {}).catch(
           () => undefined,
@@ -92,7 +102,7 @@ export function Inbox() {
               ...previous,
               items: previous.items.map((m) => ({
                 ...m,
-                readBy: [...new Set([...m.readBy, id])],
+                readBy: [...new Set([...(m.readBy || []), id])],
               })),
             }
           : null,
@@ -103,14 +113,13 @@ export function Inbox() {
       socketEvent.conversationId === selected
     ) {
       setTyping(!!socketEvent.typing);
-      const timer = setTimeout(() => setTyping(false), 3000);
-      return () => clearTimeout(timer);
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      typingTimer.current = setTimeout(() => setTyping(false), 3000);
     }
-  }, [socketEvent]);
-  useEffect(
-    () => end.current?.scrollIntoView({ block: "nearest" }),
-    [messages.data?.items.length],
-  );
+  }, [socketEvent, selected]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "nearest" });
+  }, [messages.data?.items?.length]);
   async function send() {
     if (!user || !selected || (!body.trim() && !share)) return;
     setSending(true);
@@ -129,7 +138,11 @@ export function Inbox() {
                 ...previous.items.filter((m) => m.id !== message.id),
               ],
             }
-          : null,
+          : {
+              items: [message],
+              nextCursor: null,
+              hasMore: false,
+            },
       );
       setBody("");
       sessionStorage.removeItem(`dm:${selected}`);
@@ -301,7 +314,7 @@ export function Inbox() {
                 className="button primary"
                 onClick={() =>
                   void mutate(`/conversations/${selected}/accept`, {})
-                    .then(conversations.load)
+                    .then(() => void conversations.load())
                     .catch((e) => toast(e.message))
                 }
               >
@@ -342,62 +355,70 @@ export function Inbox() {
                     Earlier messages
                   </button>
                 )}
-                {[...(messages.data?.items || [])].reverse().map((m) => (
-                  <div
-                    className={`message ${m.sender.id === user.id ? "own" : ""}`}
-                    key={m.id}
-                  >
-                    {m.sender.id !== user.id && (
-                      <Avatar name={m.sender.displayName} size={27} />
-                    )}
-                    <div>
-                      <div className="message-bubble">
-                        {m.unsent ? (
-                          <em>Message unsent</em>
-                        ) : (
-                          <>
-                            {m.body}
-                            {m.sharedPost && (
-                              <Link
-                                className="shared-post"
-                                href={`/post/${m.sharedPost.id}`}
-                              >
-                                <MessageCircle size={17} />
-                                {m.sharedPost.caption?.slice(0, 100) ||
-                                  "Shared product update"}
-                              </Link>
-                            )}
-                          </>
+                {[...(messages.data?.items || [])].reverse().map((m) => {
+                  const isOwn = m.sender?.id === user?.id;
+                  const readCount = m.readBy?.length ?? 0;
+                  return (
+                    <div
+                      className={`message ${isOwn ? "own" : ""}`}
+                      key={m.id}
+                    >
+                      {!isOwn && (
+                        <Avatar
+                          name={m.sender?.displayName || "User"}
+                          url={m.sender?.avatarUrl}
+                          size={27}
+                        />
+                      )}
+                      <div>
+                        <div className="message-bubble">
+                          {m.unsent ? (
+                            <em>Message unsent</em>
+                          ) : (
+                            <>
+                              {m.body}
+                              {m.sharedPost && (
+                                <Link
+                                  className="shared-post"
+                                  href={`/post/${m.sharedPost.id}`}
+                                >
+                                  <MessageCircle size={17} />
+                                  {m.sharedPost.caption?.slice(0, 100) ||
+                                    "Shared product update"}
+                                </Link>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        <small>
+                          {ago(m.createdAt)}
+                          {isOwn && (
+                            <>
+                              <CheckCheck size={12} />
+                              {readCount > 1 ? "Read" : "Sent"}
+                            </>
+                          )}
+                        </small>
+                        {isOwn && !m.unsent && (
+                          <button
+                            className="unsend-button"
+                            onClick={() =>
+                              void mutate(
+                                `/messages/${m.id}?scope=everyone`,
+                                undefined,
+                                "DELETE",
+                              )
+                                .then(() => void messages.load())
+                                .catch((e) => toast(e.message))
+                            }
+                          >
+                            Unsend
+                          </button>
                         )}
                       </div>
-                      <small>
-                        {ago(m.createdAt)}
-                        {m.sender.id === user.id && (
-                          <>
-                            <CheckCheck size={12} />
-                            {m.readBy.length > 1 ? "Read" : "Sent"}
-                          </>
-                        )}
-                      </small>
-                      {m.sender.id === user.id && !m.unsent && (
-                        <button
-                          className="unsend-button"
-                          onClick={() =>
-                            void mutate(
-                              `/messages/${m.id}?scope=everyone`,
-                              undefined,
-                              "DELETE",
-                            )
-                              .then(messages.load)
-                              .catch((e) => toast(e.message))
-                          }
-                        >
-                          Unsend
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
             <div ref={end} />
