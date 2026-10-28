@@ -456,6 +456,7 @@ export function proxy(request: NextRequest) {
       "camera=(), microphone=(), geolocation=(), browsing-topics=()",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     Link: LINK_HEADERS,
   };
 
@@ -662,8 +663,8 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "img-src 'self' https: http: data: blob:",
-    "media-src 'self' https: http: blob:",
+    "img-src 'self' https: data: blob:",
+    "media-src 'self' https: blob:",
     `connect-src 'self' ${api} ${socket} https://productscroll-api.onrender.com wss://productscroll-api.onrender.com https://*.onrender.com wss://*.onrender.com https://*.r2.cloudflarestorage.com https://*.cloudflare.com blob: ${process.env.NEXT_PUBLIC_UPLOAD_ORIGINS || ""}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
