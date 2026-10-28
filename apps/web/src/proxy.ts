@@ -15,7 +15,7 @@ export function proxy(request: NextRequest) {
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' https: http: data: blob:",
     "media-src 'self' https: http: blob:",
-    `connect-src 'self' ${api} ${socket} ${process.env.NEXT_PUBLIC_UPLOAD_ORIGINS || ""}`,
+    `connect-src 'self' ${api} ${socket} https://productscroll-api.onrender.com wss://productscroll-api.onrender.com https://*.onrender.com wss://*.onrender.com https://*.r2.cloudflarestorage.com https://*.cloudflare.com blob: ${process.env.NEXT_PUBLIC_UPLOAD_ORIGINS || ""}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

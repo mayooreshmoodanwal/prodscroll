@@ -123,7 +123,10 @@ export async function mediaRoutes(app: FastifyInstance) {
     else {
       const expires = Date.now() + 600000;
       const payload = `${asset.id}.${expires}`;
-      uploadUrl = `${process.env.PUBLIC_API_URL || "http://localhost:4000"}/api/uploads/${asset.id}?expires=${expires}&signature=${sign(payload)}`;
+      const base = process.env.PUBLIC_API_URL
+        ? process.env.PUBLIC_API_URL.replace(/\/api\/?$/, "")
+        : "";
+      uploadUrl = `${base}/api/uploads/${asset.id}?expires=${expires}&signature=${sign(payload)}`;
     }
     return {
       assetId: asset.id,

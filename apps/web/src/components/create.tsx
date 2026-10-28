@@ -75,7 +75,12 @@ export function CreatePage() {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         requests.current.set(item.key, xhr);
-        xhr.open("PUT", spec.uploadUrl);
+        const targetUrl =
+          typeof window !== "undefined" &&
+          spec.uploadUrl.startsWith("http://localhost:4000")
+            ? spec.uploadUrl.replace("http://localhost:4000", "")
+            : spec.uploadUrl;
+        xhr.open("PUT", targetUrl);
         for (const [name, value] of Object.entries(spec.headers))
           xhr.setRequestHeader(name, value);
         xhr.upload.onprogress = (e) => {
