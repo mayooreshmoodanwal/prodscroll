@@ -1,0 +1,25 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://productscroll-api.onrender.com/api",
+      "service-desc": [
+        {
+          "href": "https://productscroll-api.onrender.com/api/docs/json",
+          "type": "application/vnd.oai.openapi+json;version=3.0"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://productscroll-api.onrender.com/api/docs",
+          "type": "text/html"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://productscroll-api.onrender.com/healthz",
+          "type": "application/json"
+        }
+      ]
+    }
+  ]
+}

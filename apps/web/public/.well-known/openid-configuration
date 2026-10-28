@@ -1,0 +1,13 @@
+{
+  "issuer": "https://prod.ayushkumarsingh.in",
+  "authorization_endpoint": "https://prod.ayushkumarsingh.in/login",
+  "token_endpoint": "https://productscroll-api.onrender.com/api/auth/token",
+  "userinfo_endpoint": "https://productscroll-api.onrender.com/api/auth/me",
+  "jwks_uri": "https://productscroll-api.onrender.com/api/auth/jwks",
+  "registration_endpoint": "https://prod.ayushkumarsingh.in/auth.md",
+  "scopes_supported": ["openid", "profile", "email", "read", "write"],
+  "response_types_supported": ["code", "token"],
+  "grant_types_supported": ["authorization_code", "client_credentials", "refresh_token"],
+  "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
+  "service_documentation": "https://productscroll-api.onrender.com/api/docs"
+}

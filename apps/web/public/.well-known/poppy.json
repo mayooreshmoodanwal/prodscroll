@@ -1,0 +1,11 @@
+{
+  "protocol_version": "0.1",
+  "organization": {
+    "name": "ProductScroll",
+    "domain": "prod.ayushkumarsingh.in"
+  },
+  "web": {},
+  "apis": {
+    "base_url": "https://productscroll-api.onrender.com/api"
+  }
+}

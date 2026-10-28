@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agentskills.io/schema/v0.2.0/index.json",
+  "skills": [
+    {
+      "name": "browse-startups",
+      "type": "skill-md",
+      "description": "Discover early stage startups, builder updates, and product launches.",
+      "url": "https://prod.ayushkumarsingh.in/.well-known/agent-skills/browse-startups/SKILL.md"
+    }
+  ]
+}

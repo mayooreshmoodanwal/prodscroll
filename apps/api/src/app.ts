@@ -122,6 +122,17 @@ export async function buildApp(
     redis,
     skipOnError: false,
     nameSpace: options.rateLimitNamespace || "productscroll:rate:",
+    addHeadersOnExceeding: {
+      "x-ratelimit-limit": true,
+      "x-ratelimit-remaining": true,
+      "x-ratelimit-reset": true,
+    },
+    addHeaders: {
+      "x-ratelimit-limit": true,
+      "x-ratelimit-remaining": true,
+      "x-ratelimit-reset": true,
+      "retry-after": true,
+    },
   });
   await app.register(websocket, { options: { maxPayload: 4096 } });
   await app.register(swagger, {

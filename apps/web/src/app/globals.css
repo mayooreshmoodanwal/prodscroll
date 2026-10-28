@@ -1,8 +1,7 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&display=swap");
 @import "@productscroll/design-tokens/styles.css";
 :root {
   color-scheme: light;
-  font-family: "DM Sans", Arial, sans-serif;
+  font-family: var(--font-dm-sans), "DM Sans", Arial, sans-serif;
   font-synthesis: none;
 }
 :root[data-theme="dark"] {

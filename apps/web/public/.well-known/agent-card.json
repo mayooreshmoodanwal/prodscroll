@@ -1,0 +1,30 @@
+{
+  "name": "ProductScroll Builder Agent",
+  "version": "1.0.0",
+  "description": "Agent for discovering startups, product updates, builder profiles, and product reels on ProductScroll.",
+  "supportedInterfaces": [
+    {
+      "url": "https://productscroll-api.onrender.com/api/a2a",
+      "protocol": "HTTP/1.1",
+      "transport": "json-rpc-2.0"
+    }
+  ],
+  "capabilities": {
+    "search": true,
+    "reels": true,
+    "startups": true,
+    "products": true
+  },
+  "skills": [
+    {
+      "id": "browse-startups",
+      "name": "Browse Startups",
+      "description": "Search and discover startups and products created by builders."
+    },
+    {
+      "id": "view-reels",
+      "name": "View Product Reels",
+      "description": "Stream product reels and demo videos."
+    }
+  ]
+}

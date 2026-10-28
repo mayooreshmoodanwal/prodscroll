@@ -438,6 +438,10 @@ export function Inbox() {
           )}
           <form
             className="message-compose"
+            {...{
+              toolname: "sendMessage",
+              tooldescription: "Send a direct message to a builder or founder",
+            }}
             onSubmit={(e) => {
               e.preventDefault();
               void send();
@@ -448,6 +452,9 @@ export function Inbox() {
               placeholder="Start with a hello…"
               value={body}
               maxLength={5000}
+              {...{
+                toolparamdescription: "Content of the direct message",
+              }}
               onChange={(e) => {
                 setBody(e.target.value);
                 sessionStorage.setItem(`dm:${selected}`, e.target.value);

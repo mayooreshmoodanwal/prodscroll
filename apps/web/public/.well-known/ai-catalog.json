@@ -1,0 +1,40 @@
+{
+  "specVersion": "1.0.0",
+  "host": {
+    "domain": "prod.ayushkumarsingh.in",
+    "name": "ProductScroll"
+  },
+  "entries": [
+    {
+      "id": "urn:air:prod.ayushkumarsingh.in:api:openapi",
+      "displayName": "ProductScroll REST API",
+      "type": "application/vnd.oai.openapi+json;version=3.0",
+      "url": "https://productscroll-api.onrender.com/api/docs/json",
+      "representativeQueries": [
+        "Find startups on ProductScroll",
+        "Get product reels",
+        "Read founder updates"
+      ]
+    },
+    {
+      "id": "urn:air:prod.ayushkumarsingh.in:mcp:server",
+      "displayName": "ProductScroll MCP Server",
+      "type": "application/json",
+      "url": "https://prod.ayushkumarsingh.in/.well-known/mcp/server-card.json",
+      "representativeQueries": [
+        "Connect MCP agent to ProductScroll",
+        "Browse products via MCP"
+      ]
+    },
+    {
+      "id": "urn:air:prod.ayushkumarsingh.in:agent:card",
+      "displayName": "ProductScroll A2A Agent",
+      "type": "application/json",
+      "url": "https://prod.ayushkumarsingh.in/.well-known/agent-card.json",
+      "representativeQueries": [
+        "A2A agent protocol discovery",
+        "Collaborate with ProductScroll agent"
+      ]
+    }
+  ]
+}

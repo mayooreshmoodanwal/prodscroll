@@ -1,0 +1,18 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/server-card.json",
+  "serverInfo": {
+    "name": "productscroll-mcp",
+    "version": "1.0.0",
+    "title": "ProductScroll MCP Server",
+    "description": "Model Context Protocol (MCP) server for discovering startups, products, and reels on ProductScroll."
+  },
+  "transport": {
+    "type": "sse",
+    "endpoint": "https://productscroll-api.onrender.com/api/mcp/sse"
+  },
+  "capabilities": {
+    "tools": { "listChanged": false },
+    "resources": { "subscribe": false, "listChanged": false },
+    "prompts": { "listChanged": false }
+  }
+}

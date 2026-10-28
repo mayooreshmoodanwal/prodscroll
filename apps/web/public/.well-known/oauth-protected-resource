@@ -1,0 +1,7 @@
+{
+  "resource": "https://prod.ayushkumarsingh.in",
+  "authorization_servers": ["https://prod.ayushkumarsingh.in"],
+  "scopes_supported": ["read", "write", "messages", "profile"],
+  "bearer_methods_supported": ["header"],
+  "resource_documentation": "https://productscroll-api.onrender.com/api/docs"
+}

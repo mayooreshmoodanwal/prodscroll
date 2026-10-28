@@ -92,6 +92,9 @@ export function ExplorePage() {
           placeholder="Startups, products, people, possibilities…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          {...{
+            toolparamdescription: "Keyword to search startups, products, and builders",
+          }}
         />
         {q && (
           <button

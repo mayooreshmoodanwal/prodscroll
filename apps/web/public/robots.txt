@@ -1,0 +1,53 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+# AI Search Crawlers (Index content to answer user prompts)
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+# AI Training Crawlers
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+User-agent: CCBot
+Allow: /
+Disallow: /admin
+Disallow: /settings
+Disallow: /api/
+
+# Content Signals (draft-romm-aipref-contentsignals)
+Content-Signal: ai-train=no, search=yes, ai-input=no
+
+# Sitemaps
+Sitemap: https://prod.ayushkumarsingh.in/sitemap.xml
