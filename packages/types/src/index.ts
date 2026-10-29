@@ -134,9 +134,10 @@ export interface Collection {
   items?: Post[];
 }
 export interface SocketEvent {
-  type: "message" | "read" | "typing" | "notification";
+  type: "message" | "read" | "typing" | "notification" | "message_unsent";
   conversationId?: string;
   message?: Message;
+  messageId?: string;
   userId?: string;
   typing?: boolean;
   notification?: Notification;
