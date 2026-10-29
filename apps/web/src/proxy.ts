@@ -456,7 +456,6 @@ export function proxy(request: NextRequest) {
       "camera=(), microphone=(), geolocation=(), browsing-topics=()",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
     Link: LINK_HEADERS,
   };
 
@@ -678,12 +677,13 @@ export function proxy(request: NextRequest) {
   headers.set("Content-Security-Policy", policy);
 
   const response = NextResponse.next({ request: { headers } });
-  response.headers.set("Content-Security-Policy", policy);
 
   // Apply all base security and link discovery headers
   for (const [key, value] of Object.entries(baseHeaders)) {
     response.headers.set(key, value);
   }
+
+  response.headers.set("Content-Security-Policy", policy);
 
   if (isAuthRoute) {
     const rate = checkRateLimit(clientIp, 60, 60000);
