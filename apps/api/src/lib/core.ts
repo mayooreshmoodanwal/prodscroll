@@ -253,6 +253,7 @@ export async function notify(
   body: string,
   postId?: string,
   startupId?: string,
+  groupKeyOverride?: string,
 ) {
   if (userId === actorId) return;
   const preference = await db.notificationPreference.findUnique({
@@ -261,7 +262,8 @@ export async function notify(
 
   let notification = null;
   if (preference?.inApp !== false) {
-    const groupKey = `${type}:${postId || startupId || actorId}`;
+    const groupKey =
+      groupKeyOverride || `${type}:${postId || startupId || actorId}`;
     const recent = await db.notification.findFirst({
       where: {
         userId,
@@ -317,13 +319,16 @@ export async function notify(
             : isPost
               ? `${actor?.displayName || "Someone"} published a new post on ProductScroll`
               : "New notification on ProductScroll";
+          const emailBody = isMsg
+            ? `${actor?.displayName || "Someone"} sent you a message.`
+            : body;
           const actionUrl = isMsg
             ? "https://prod.ayushkumarsingh.in/messages"
             : postId
               ? `https://prod.ayushkumarsingh.in/post/${postId}`
               : "https://prod.ayushkumarsingh.in/notifications";
           const actionLabel = isMsg
-            ? "Reply to Message"
+            ? "View Message"
             : isPost
               ? "View Post"
               : "View on ProductScroll";
@@ -331,7 +336,7 @@ export async function notify(
           await sendNotificationAlertEmail({
             to: recipient.email,
             title: subject,
-            body,
+            body: emailBody,
             actionLabel,
             actionUrl,
           });

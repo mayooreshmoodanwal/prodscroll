@@ -82,7 +82,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           try {
             const data = JSON.parse(String(event.data)) as SocketEvent;
             setSocketEvent(data);
-            if (data.type === "notification") setUnread((n) => n + 1);
+            if (data.type === "notification") setUnread((n: number) => n + 1);
+            if (data.type === "message_unsent") {
+              void api<{ items: { readAt?: string }[] }>("/notifications")
+                .then((r) => setUnread(r.items.filter((i) => !i.readAt).length))
+                .catch(() => {});
+            }
 
             // Device Notification Panel Delivery
             if (
@@ -100,7 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   ? `New message from ${data.message?.sender?.displayName || "Someone"}`
                   : "ProductScroll";
                 const body = isMsg
-                  ? data.message?.body || "Sent you a message."
+                  ? `${data.message?.sender?.displayName || "Someone"} sent you a message.`
                   : data.notification?.body || "You have a new update.";
                 const targetUrl = isMsg
                   ? "/messages"

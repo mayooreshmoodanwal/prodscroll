@@ -438,21 +438,16 @@ export async function messageRoutes(app: FastifyInstance) {
       conversationId: id,
       message: result,
     });
-    const msgPreview = input.body
-      ? `: "${input.body.slice(0, 80)}${input.body.length > 80 ? "…" : ""}"`
-      : input.mediaIds.length > 0
-        ? " with an attachment"
-        : input.sharedPostId
-          ? " sharing a post"
-          : "";
-
     for (const m of members)
       if (!m.muted)
         await notify(
           m.userId,
           user.id,
           "MESSAGE",
-          `${user.displayName} sent you a message${msgPreview}.`,
+          `${user.displayName} sent you a message.`,
+          undefined,
+          undefined,
+          `MESSAGE:${message.id}`,
         );
     return reply.code(201).send({ message: result });
   });
@@ -531,6 +526,38 @@ export async function messageRoutes(app: FastifyInstance) {
         where: { id },
         data: { body: "", unsentAt: new Date(), sharedPostId: null },
       });
+
+      const members = await db.conversationMember.findMany({
+        where: { conversationId: message.conversationId },
+        select: { userId: true },
+      });
+      const otherMemberIds = members
+        .map((m) => m.userId)
+        .filter((uid) => uid !== user.id);
+
+      // Delete in-app notifications for this unsent message
+      if (otherMemberIds.length > 0) {
+        await db.notification.deleteMany({
+          where: {
+            userId: { in: otherMemberIds },
+            type: "MESSAGE",
+            OR: [
+              { groupKey: `MESSAGE:${id}` },
+              { groupKey: `MESSAGE:${user.id}` },
+              { actorId: user.id },
+            ],
+          },
+        });
+      }
+
+      await emit(
+        members.map((m) => m.userId),
+        {
+          type: "message_unsent",
+          conversationId: message.conversationId,
+          messageId: id,
+        },
+      );
     } else
       await db.messageHidden.createMany({
         data: { messageId: id, userId: user.id },

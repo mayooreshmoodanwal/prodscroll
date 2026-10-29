@@ -16,10 +16,19 @@ import { api, mutate, ago, API_URL } from "../lib/api";
 import type { Notification, Page, User } from "../lib/types";
 import { Avatar, PageHeading, Loading, Empty, ErrorState, Modal } from "./ui";
 export function NotificationsPage() {
-  const { user, requireAuth, setUnread, toast } = useApp();
+  const { user, requireAuth, setUnread, toast, socketEvent } = useApp();
   const { data, loading, error, load, setData } = useResource<
     Page<Notification>
   >(user ? "/notifications" : null);
+
+  useEffect(() => {
+    if (
+      socketEvent?.type === "notification" ||
+      socketEvent?.type === "message_unsent"
+    ) {
+      void load();
+    }
+  }, [socketEvent, load]);
   return (
     <>
       <PageHeading

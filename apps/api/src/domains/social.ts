@@ -541,6 +541,19 @@ export async function socialRoutes(app: FastifyInstance) {
   app.get("/notifications", async (req) => {
     const user = await requireUser(req);
     const { cursor, limit } = parse(pageQuery, req.query);
+
+    // Auto-clean any stale message notifications that exposed quotes or belong to unsent messages
+    await db.notification.deleteMany({
+      where: {
+        userId: user.id,
+        type: "MESSAGE",
+        OR: [
+          { body: { contains: "Jhattu" } },
+          { body: { contains: 'sent you a message: "' } },
+        ],
+      },
+    });
+
     const result = page(
       await db.notification.findMany({
         where: { userId: user.id, ...decodeCursor(cursor) },
