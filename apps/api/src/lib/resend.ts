@@ -220,3 +220,142 @@ export async function sendPasswordResetOtpEmail(to: string, otp: string) {
     text: `Your Prodgram password reset code is: ${otp}\n\nThis code will expire in 15 minutes. If you did not request a password reset, please ignore this email.`,
   });
 }
+
+export async function sendNotificationAlertEmail({
+  to,
+  title,
+  body,
+  actionLabel,
+  actionUrl,
+}: {
+  to: string;
+  title: string;
+  body: string;
+  actionLabel?: string;
+  actionUrl?: string;
+}) {
+  const targetUrl = actionUrl || "https://prod.ayushkumarsingh.in/notifications";
+  const label = actionLabel || "View on ProductScroll";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #090a0f;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #e2e8f0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #090a0f;
+      padding: 40px 15px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 520px;
+      margin: 0 auto;
+      background-color: #11141e;
+      border: 1px solid #1e2436;
+      border-radius: 12px;
+      padding: 36px 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #38bdf8;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .brand-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #38bdf8;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 14px 0;
+      letter-spacing: -0.4px;
+    }
+    p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      margin: 0 0 24px 0;
+    }
+    .btn-container {
+      text-align: center;
+      margin: 30px 0;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #38bdf8;
+      color: #090a0f !important;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      padding: 12px 28px;
+      border-radius: 8px;
+    }
+    .footer-note {
+      font-size: 12px;
+      color: #64748b;
+      border-top: 1px solid #1e2436;
+      padding-top: 18px;
+      margin-top: 24px;
+      line-height: 1.5;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 11px;
+      color: #475569;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <div class="brand"><span class="brand-dot"></span>PRODUCTSCROLL</div>
+      <h1>${title}</h1>
+      <p>${body.replace(/\n/g, "<br>")}</p>
+      
+      <div class="btn-container">
+        <a class="btn" href="${targetUrl}">${label}</a>
+      </div>
+      
+      <div class="footer-note">
+        You are receiving this notification because email notifications are turned on for your account. You can manage notification settings anytime in <a href="https://prod.ayushkumarsingh.in/settings" style="color: #38bdf8; text-decoration: underline;">Settings</a>.
+      </div>
+    </div>
+    <div class="footer">
+      ProductScroll · The Builders' Network · noreply@wishelier.in
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendResendEmail({
+    to,
+    subject: title,
+    html,
+    text: `${title}\n\n${body}\n\n${label}: ${targetUrl}`,
+  });
+}

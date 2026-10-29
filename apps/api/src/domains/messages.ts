@@ -438,13 +438,21 @@ export async function messageRoutes(app: FastifyInstance) {
       conversationId: id,
       message: result,
     });
+    const msgPreview = input.body
+      ? `: "${input.body.slice(0, 80)}${input.body.length > 80 ? "…" : ""}"`
+      : input.mediaIds.length > 0
+        ? " with an attachment"
+        : input.sharedPostId
+          ? " sharing a post"
+          : "";
+
     for (const m of members)
       if (!m.muted)
         await notify(
           m.userId,
           user.id,
           "MESSAGE",
-          `${user.displayName} sent you a message.`,
+          `${user.displayName} sent you a message${msgPreview}.`,
         );
     return reply.code(201).send({ message: result });
   });

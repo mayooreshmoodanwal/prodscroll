@@ -53,6 +53,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme =
       localStorage.getItem("ps-theme") || "light";
     void refreshUser();
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
   }, [refreshUser]);
   useEffect(() => {
     if (!user) return;
@@ -80,6 +83,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
             const data = JSON.parse(String(event.data)) as SocketEvent;
             setSocketEvent(data);
             if (data.type === "notification") setUnread((n) => n + 1);
+
+            // Device Notification Panel Delivery
+            if (
+              typeof window !== "undefined" &&
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              const isMsg = data.type === "message";
+              const isNotif = data.type === "notification";
+              if (isMsg || isNotif) {
+                // Ignore messages sent by ourselves
+                if (isMsg && data.message?.senderId === user.id) return;
+
+                const title = isMsg
+                  ? `New message from ${data.message?.sender?.displayName || "Someone"}`
+                  : "ProductScroll";
+                const body = isMsg
+                  ? data.message?.body || "Sent you a message."
+                  : data.notification?.body || "You have a new update.";
+                const targetUrl = isMsg
+                  ? "/messages"
+                  : data.notification?.postId
+                    ? `/post/${data.notification.postId}`
+                    : "/notifications";
+                const tag = isMsg
+                  ? `msg-${data.conversationId || Date.now()}`
+                  : `notif-${data.notification?.id || Date.now()}`;
+
+                if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+                  navigator.serviceWorker.ready
+                    .then((reg) => {
+                      reg.showNotification(title, {
+                        body,
+                        icon: "/favicon.ico",
+                        badge: "/favicon.ico",
+                        tag,
+                        data: { url: targetUrl },
+                      });
+                    })
+                    .catch(() => {
+                      const notif = new Notification(title, { body, icon: "/favicon.ico", tag });
+                      notif.onclick = () => {
+                        window.focus();
+                        window.location.href = targetUrl;
+                      };
+                    });
+                } else {
+                  const notif = new Notification(title, { body, icon: "/favicon.ico", tag });
+                  notif.onclick = () => {
+                    window.focus();
+                    window.location.href = targetUrl;
+                  };
+                }
+              }
+            }
           } catch {
             /* malformed frames cannot alter application state */
           }

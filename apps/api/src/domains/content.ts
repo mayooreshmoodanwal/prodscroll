@@ -15,6 +15,7 @@ import {
   decodeCursor,
   startupPermission,
   notify,
+  fanoutPostNotifications,
   jobs,
   redis,
   token,
@@ -448,8 +449,14 @@ export async function contentRoutes(app: FastifyInstance) {
         },
       },
     });
-    if (!input.draft && input.startupId)
-      await jobs.add("post-notifications", { postId: post.id });
+    if (!input.draft) {
+      void fanoutPostNotifications(post.id).catch((err) =>
+        console.error("[Post Notification Fanout Error]", err),
+      );
+      try {
+        await jobs.add("post-notifications", { postId: post.id });
+      } catch {}
+    }
     return reply.code(201).send({ post: await getPost(post.id, user.id) });
   });
   app.post("/posts/:id/publish", async (req) => {
@@ -463,7 +470,12 @@ export async function contentRoutes(app: FastifyInstance) {
       where: { id },
       data: { draft: false, createdAt: new Date() },
     });
-    if (post.startupId) await jobs.add("post-notifications", { postId: id });
+    void fanoutPostNotifications(id).catch((err) =>
+      console.error("[Post Notification Fanout Error]", err),
+    );
+    try {
+      await jobs.add("post-notifications", { postId: id });
+    } catch {}
     return { post: await getPost(id, user.id) };
   });
   app.delete("/posts/:id", async (req) => {

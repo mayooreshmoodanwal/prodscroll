@@ -327,12 +327,41 @@ export function SettingsPage() {
                   <input
                     type="checkbox"
                     checked={preferences.data![key]}
-                    onChange={(e) => {
+                    onChange={async (e) => {
+                      const willEnable = e.target.checked;
+                      if (key === "push" && willEnable) {
+                        if (
+                          typeof window !== "undefined" &&
+                          "Notification" in window
+                        ) {
+                          if (Notification.permission === "default") {
+                            const res = await Notification.requestPermission();
+                            if (res !== "granted") {
+                              toast(
+                                "Allow notification permissions in your browser to receive device alerts.",
+                              );
+                            } else {
+                              toast("Device push notifications enabled!");
+                            }
+                          } else if (Notification.permission === "denied") {
+                            toast(
+                              "Notifications are blocked in your browser settings. Please allow notifications for this site.",
+                            );
+                          } else {
+                            toast("Device push notifications enabled!");
+                          }
+                          if ("serviceWorker" in navigator) {
+                            navigator.serviceWorker
+                              .register("/sw.js")
+                              .catch(() => {});
+                          }
+                        }
+                      }
                       const next = {
                         inApp: preferences.data!.inApp,
                         email: preferences.data!.email,
                         push: preferences.data!.push,
-                        [key]: e.target.checked,
+                        [key]: willEnable,
                       };
                       void mutate("/notifications/preferences", next, "PUT")
                         .then(preferences.load)
@@ -345,12 +374,13 @@ export function SettingsPage() {
                       : key === "email"
                         ? "Email notifications"
                         : "Push notifications"}
-                    {key === "push" && (
-                      <small>
-                        Local development records push deliveries in the worker
-                        outbox.
-                      </small>
-                    )}
+                    <small>
+                      {key === "inApp"
+                        ? "Notification bell and activity feed updates."
+                        : key === "email"
+                          ? "Direct emails when someone messages you or someone you follow posts."
+                          : "Alerts delivered to your device notification panel and lock screen."}
+                    </small>
                   </span>
                 </label>
               ))}

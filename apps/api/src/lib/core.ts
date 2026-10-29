@@ -5,6 +5,7 @@ import { z } from "zod";
 import { Redis } from "ioredis";
 import { jobs } from "./queues.js";
 export { jobs } from "./queues.js";
+import { sendNotificationAlertEmail } from "./resend.js";
 import {
   createHash,
   randomBytes,
@@ -257,31 +258,162 @@ export async function notify(
   const preference = await db.notificationPreference.findUnique({
     where: { userId },
   });
-  if (preference?.inApp === false) return;
-  const groupKey = `${type}:${postId || startupId || actorId}`;
-  const recent = await db.notification.findFirst({
-    where: {
-      userId,
-      groupKey,
-      readAt: null,
-      createdAt: { gt: new Date(Date.now() - 3600000) },
-    },
+
+  let notification = null;
+  if (preference?.inApp !== false) {
+    const groupKey = `${type}:${postId || startupId || actorId}`;
+    const recent = await db.notification.findFirst({
+      where: {
+        userId,
+        groupKey,
+        readAt: null,
+        createdAt: { gt: new Date(Date.now() - 3600000) },
+      },
+    });
+    notification = recent
+      ? await db.notification.update({
+          where: { id: recent.id },
+          data: { body, actorId, createdAt: new Date() },
+        })
+      : await db.notification.create({
+          data: { userId, actorId, type, body, postId, startupId, groupKey },
+        });
+    await emit([userId], { type: "notification", notification });
+  }
+
+  // Push notification (triggers real-time client & device notification panel)
+  if (preference?.push) {
+    if (notification) {
+      try {
+        await jobs.add(
+          "deliver-notification",
+          { notificationId: notification.id },
+          { jobId: `notify-${notification.id}` },
+        );
+      } catch {
+        /* Redis queue fallback handled gracefully */
+      }
+    }
+  }
+
+  // Direct email delivery when user has email notifications turned on
+  if (preference?.email) {
+    void (async () => {
+      try {
+        const recipient = await db.user.findUnique({
+          where: { id: userId },
+          select: { email: true, displayName: true },
+        });
+        const actor = await db.user.findUnique({
+          where: { id: actorId },
+          select: { displayName: true, username: true },
+        });
+        if (recipient?.email) {
+          const isMsg = type === "MESSAGE";
+          const isPost =
+            type === "FOLLOWED_USER_POST" || type === "STARTUP_POST";
+          const subject = isMsg
+            ? `New message from ${actor?.displayName || "Someone"} on ProductScroll`
+            : isPost
+              ? `${actor?.displayName || "Someone"} published a new post on ProductScroll`
+              : "New notification on ProductScroll";
+          const actionUrl = isMsg
+            ? "https://prod.ayushkumarsingh.in/messages"
+            : postId
+              ? `https://prod.ayushkumarsingh.in/post/${postId}`
+              : "https://prod.ayushkumarsingh.in/notifications";
+          const actionLabel = isMsg
+            ? "Reply to Message"
+            : isPost
+              ? "View Post"
+              : "View on ProductScroll";
+
+          await sendNotificationAlertEmail({
+            to: recipient.email,
+            title: subject,
+            body,
+            actionLabel,
+            actionUrl,
+          });
+        }
+      } catch (err) {
+        console.error("[Email Notification Delivery Error]", err);
+      }
+    })();
+  }
+}
+
+export async function fanoutPostNotifications(postId: string) {
+  const post = await db.post.findUnique({
+    where: { id: postId },
+    include: { author: true, startup: true },
   });
-  const notification = recent
-    ? await db.notification.update({
-        where: { id: recent.id },
-        data: { body, actorId, createdAt: new Date() },
+  if (
+    !post ||
+    post.draft ||
+    post.removedAt ||
+    post.author.suspended ||
+    post.author.deactivatedAt
+  )
+    return;
+
+  // 1. Find all users following the author
+  const userFollowers = await db.userFollow.findMany({
+    where: {
+      followingId: post.authorId,
+      accepted: true,
+      follower: {
+        suspended: false,
+        deactivatedAt: null,
+        blocked: { none: { blockedId: post.authorId } },
+        blockedBy: { none: { blockerId: post.authorId } },
+        mutes: { none: { mutedId: post.authorId } },
+      },
+    },
+    select: { followerId: true },
+  });
+
+  // 2. If the post belongs to a startup, find all users following the startup
+  const startupFollowers = post.startupId
+    ? await db.startupFollow.findMany({
+        where: {
+          startupId: post.startupId,
+          user: {
+            suspended: false,
+            deactivatedAt: null,
+            blocked: { none: { blockedId: post.authorId } },
+            blockedBy: { none: { blockerId: post.authorId } },
+            mutes: { none: { mutedId: post.authorId } },
+          },
+        },
+        select: { userId: true },
       })
-    : await db.notification.create({
-        data: { userId, actorId, type, body, postId, startupId, groupKey },
-      });
-  await emit([userId], { type: "notification", notification });
-  if (preference?.email || preference?.push)
-    await jobs.add(
-      "deliver-notification",
-      { notificationId: notification.id },
-      { jobId: `notify-${notification.id}` },
+    : [];
+
+  const recipientIds = [
+    ...new Set([
+      ...userFollowers.map((f: { followerId: string }) => f.followerId),
+      ...startupFollowers.map((f: { userId: string }) => f.userId),
+    ]),
+  ].filter((id) => id !== post.authorId);
+
+  const preview = post.caption
+    ? `"${post.caption.slice(0, 80)}${post.caption.length > 80 ? "…" : ""}"`
+    : "";
+  const body = post.startup
+    ? `${post.startup.name} shared a new update${preview ? `: ${preview}` : "."}`
+    : `${post.author.displayName} shared a new post${preview ? `: ${preview}` : "."}`;
+
+  for (const recipientId of recipientIds) {
+    await notify(
+      recipientId,
+      post.authorId,
+      post.startupId ? "STARTUP_POST" : "FOLLOWED_USER_POST",
+      body,
+      post.id,
+      post.startupId ?? undefined,
     );
+  }
 }
 export async function audit(
   actorId: string,

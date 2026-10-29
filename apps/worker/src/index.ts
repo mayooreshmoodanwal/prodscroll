@@ -197,47 +197,80 @@ async function processJob(job: Job, queueName: string) {
         !post ||
         post.draft ||
         post.removedAt ||
-        !post.startupId ||
         post.author.suspended ||
         post.author.deactivatedAt
       )
         break;
-      const followers = await db.startupFollow.findMany({
+
+      const userFollowers = await db.userFollow.findMany({
         where: {
-          startupId: post.startupId,
-          userId: after ? { gt: after } : undefined,
-          user: {
+          followingId: post.authorId,
+          followerId: after ? { gt: after } : undefined,
+          accepted: true,
+          follower: {
             suspended: false,
             deactivatedAt: null,
             blocked: { none: { blockedId: post.authorId } },
             blockedBy: { none: { blockerId: post.authorId } },
             mutes: { none: { mutedId: post.authorId } },
-            ...(post.author.privateAccount
-              ? {
-                  following: {
-                    some: { followingId: post.authorId, accepted: true },
-                  },
-                }
-              : {}),
           },
         },
-        include: { user: { select: { notificationPreference: true } } },
-        orderBy: { userId: "asc" },
+        include: { follower: { select: { notificationPreference: true } } },
+        orderBy: { followerId: "asc" },
         take: 250,
       });
-      const targets = followers.filter(
-        (f) =>
-          f.userId !== post.authorId &&
-          f.user.notificationPreference?.inApp !== false,
-      );
-      const data = targets.map((f) => ({
-        id: `launch-${postId}-${f.userId}`,
-        userId: f.userId,
+
+      const startupFollowers = post.startupId
+        ? await db.startupFollow.findMany({
+            where: {
+              startupId: post.startupId,
+              userId: after ? { gt: after } : undefined,
+              user: {
+                suspended: false,
+                deactivatedAt: null,
+                blocked: { none: { blockedId: post.authorId } },
+                blockedBy: { none: { blockerId: post.authorId } },
+                mutes: { none: { mutedId: post.authorId } },
+              },
+            },
+            include: { user: { select: { notificationPreference: true } } },
+            orderBy: { userId: "asc" },
+            take: 250,
+          })
+        : [];
+
+      const followerMap = new Map<
+        string,
+        { inApp?: boolean; push?: boolean; email?: boolean } | null | undefined
+      >();
+      for (const f of userFollowers) {
+        followerMap.set(f.followerId, f.follower.notificationPreference);
+      }
+      for (const f of startupFollowers) {
+        if (!followerMap.has(f.userId)) {
+          followerMap.set(f.userId, f.user.notificationPreference);
+        }
+      }
+
+      const targets = [...followerMap.entries()]
+        .filter(
+          ([userId, pref]) =>
+            userId !== post.authorId && pref?.inApp !== false,
+        )
+        .map(([userId, pref]) => ({ userId, pref }));
+
+      const postTitle = post.startup?.name
+        ? `${post.startup.name} shared a new update.`
+        : `${post.author.displayName} shared a new post.`;
+
+      const data = targets.map((t) => ({
+        id: `launch-${postId}-${t.userId}`,
+        userId: t.userId,
         actorId: post.authorId,
-        type: "STARTUP_POST",
+        type: post.startupId ? "STARTUP_POST" : "FOLLOWED_USER_POST",
         postId,
         startupId: post.startupId,
-        body: `${post.startup?.name} shared a new update.`,
+        body: postTitle,
       }));
       if (data.length) {
         await db.notification.createMany({ data, skipDuplicates: true });
@@ -256,21 +289,16 @@ async function processJob(job: Job, queueName: string) {
         await pipeline.exec();
         await queues.get("productscroll")!.addBulk(
           targets
-            .filter(
-              (f) =>
-                f.user.notificationPreference?.push ||
-                f.user.notificationPreference?.email,
-            )
-            .map((f) => ({
+            .filter((t) => t.pref?.push || t.pref?.email)
+            .map((t) => ({
               name: "deliver-notification",
-              data: { notificationId: `launch-${postId}-${f.userId}` },
-              opts: { jobId: `push-${postId}-${f.userId}` },
+              data: { notificationId: `launch-${postId}-${t.userId}` },
+              opts: { jobId: `push-${postId}-${t.userId}` },
             })),
         );
       }
-      // One bounded page per job prevents a celebrity launch monopolizing a worker.
-      if (followers.length === 250) {
-        const next = followers.at(-1)!.userId;
+      if (userFollowers.length === 250) {
+        const next = userFollowers.at(-1)!.followerId;
         await fanoutQueue.add(
           "post-notifications",
           { postId, after: next },
