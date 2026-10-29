@@ -94,7 +94,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               const isNotif = data.type === "notification";
               if (isMsg || isNotif) {
                 // Ignore messages sent by ourselves
-                if (isMsg && data.message?.senderId === user.id) return;
+                if (isMsg && data.message?.sender?.id === user.id) return;
 
                 const title = isMsg
                   ? `New message from ${data.message?.sender?.displayName || "Someone"}`
