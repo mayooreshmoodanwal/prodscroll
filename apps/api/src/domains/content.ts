@@ -29,6 +29,7 @@ import {
   productInclude,
   presentProduct,
 } from "../lib/presenters.js";
+import { indexBuildDnaForPost } from "../lib/build-dna-indexer.js";
 import { defaultWeights, rankCandidates } from "./ranking.js";
 import { eventTypeSchema as eventTypes } from "@productscroll/validation";
 const candidateSelect = {
@@ -453,6 +454,9 @@ export async function contentRoutes(app: FastifyInstance) {
       void fanoutPostNotifications(post.id).catch((err) =>
         console.error("[Post Notification Fanout Error]", err),
       );
+      void indexBuildDnaForPost(post.id).catch((err) =>
+        console.error("[Build DNA Indexing Error]", err),
+      );
       try {
         await jobs.add("post-notifications", { postId: post.id });
       } catch {}
@@ -472,6 +476,9 @@ export async function contentRoutes(app: FastifyInstance) {
     });
     void fanoutPostNotifications(id).catch((err) =>
       console.error("[Post Notification Fanout Error]", err),
+    );
+    void indexBuildDnaForPost(id).catch((err) =>
+      console.error("[Build DNA Indexing Error]", err),
     );
     try {
       await jobs.add("post-notifications", { postId: id });

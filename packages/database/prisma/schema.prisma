@@ -47,6 +47,10 @@ enum VerificationStatus {
   VERIFIED
   REJECTED
 }
+enum RecommendationCategory {
+  COMPLEMENTARY
+  SIMILARITY
+}
 model User {
   id String @id @default(cuid())
   email String @unique
@@ -102,6 +106,12 @@ model User {
   media MediaAsset[]
   auditLogs AuditLog[]
   moderationActions ModerationAction[]
+  buildDna BuildDna[]
+  recommendationsReceived BuilderRecommendation[] @relation("targetRecommendations")
+  recommendationsGiven BuilderRecommendation[] @relation("suggestedRecommendations")
+  demoWatchlists DemoWatchlist[]
+  simulatedPositions SimulatedPosition[]
+  simulatedActivities SimulatedActivity[]
   @@index([createdAt])
 }
 model Session {
@@ -169,6 +179,7 @@ model Startup {
   followers StartupFollow[]
   saves Save[]
   verifications VerificationApplication[]
+  buildDna BuildDna[]
   @@index([category,createdAt])
   @@index([followerCount])
 }
@@ -237,6 +248,7 @@ model Post {
   impressions FeedImpression[]
   reports Report[]
   sharedMessages Message[]
+  buildDna BuildDna[]
   @@index([createdAt,id])
   @@index([authorId,createdAt])
   @@index([startupId,createdAt])
@@ -554,4 +566,142 @@ model JobFailure {
   attempts Int
   createdAt DateTime @default(now())
   @@unique([queue,jobId])
+}
+model BuildDna {
+  id                    String            @id @default(cuid())
+  userId                String
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId                String?
+  post                  Post?             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  startupId             String?
+  startup               Startup?          @relation(fields: [startupId], references: [id], onDelete: SetNull)
+  sourceType            String            @default("PROFILE")
+  sourceHash            String
+  projectDomains        String[]
+  technicalSkills       String[]
+  technologies          String[]
+  projectStage          String            @default("DEVELOPMENT")
+  skillsOffered         String[]
+  skillsNeeded          String[]
+  collaborationInterest Boolean           @default(false)
+  currentBlockers       String[]
+  interests             String[]
+  projectDescription    String            @default("")
+  modelVersion          String            @default("gemma4")
+  processingStatus      ProcessingStatus  @default(READY)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([sourceHash])
+  @@index([collaborationInterest])
+}
+model BuilderRecommendation {
+  id                    String                 @id @default(cuid())
+  targetUserId          String
+  targetUser            User                   @relation("targetRecommendations", fields: [targetUserId], references: [id], onDelete: Cascade)
+  suggestedUserId       String
+  suggestedUser         User                   @relation("suggestedRecommendations", fields: [suggestedUserId], references: [id], onDelete: Cascade)
+  category              RecommendationCategory @default(COMPLEMENTARY)
+  score                 Float
+  matchingSkills        String[]
+  complementarySkills   String[]
+  relevantProjects      Json                   @default("[]")
+  explanation           String
+  evidence              Json                   @default("{}")
+  dismissed             Boolean                @default(false)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@unique([targetUserId, suggestedUserId, category])
+  @@index([targetUserId, score])
+  @@index([category, score])
+}
+model DemoStartup {
+  id                     String                @id @default(cuid())
+  slug                   String                @unique
+  name                   String
+  tagline                String
+  description            String
+  country                String
+  countryCode            String
+  currency               String                @default("USD")
+  currencySymbol         String                @default("$")
+  industry               String
+  stage                  String
+  businessModel          String
+  technologies           String[]
+  founderName            String
+  founderBio             String
+  logoUrl                String?
+  coverUrl               String?
+  website                String?
+  targetMarket           String
+  demoTargetAmount       Float
+  demoRaisedAmount       Float
+  demoMinTicket          Float
+  demoPreMoneyValuation  Float
+  demoPostMoneyValuation Float
+  featured               Boolean               @default(false)
+  published              Boolean               @default(true)
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  updates                DemoStartupUpdate[]
+  watchlists             DemoWatchlist[]
+  simulatedPositions     SimulatedPosition[]
+  simulatedActivities    SimulatedActivity[]
+
+  @@index([countryCode, published])
+  @@index([industry])
+  @@index([featured])
+}
+model DemoStartupUpdate {
+  id          String      @id @default(cuid())
+  startupId   String
+  startup     DemoStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  updateType  String      @default("MILESTONE")
+  date        DateTime    @default(now())
+
+  @@index([startupId, date])
+}
+model DemoWatchlist {
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startupId   String
+  startup     DemoStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+
+  @@id([userId, startupId])
+  @@index([userId, createdAt])
+}
+model SimulatedPosition {
+  id                        String      @id @default(cuid())
+  userId                    String
+  user                      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startupId                 String
+  startup                   DemoStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  hypotheticalAmount        Float
+  currency                  String      @default("USD")
+  illustrativeEquityPercent Float
+  notes                     String      @default("")
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+
+  @@unique([userId, startupId])
+  @@index([userId, createdAt])
+}
+model SimulatedActivity {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startupId   String
+  startup     DemoStartup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  action      String
+  amount      Float?
+  details     String
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, createdAt])
 }

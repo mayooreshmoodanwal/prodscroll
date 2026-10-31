@@ -29,6 +29,8 @@ import { startupRoutes } from "./domains/startups.js";
 import { messageRoutes } from "./domains/messages.js";
 import { adminRoutes } from "./domains/admin.js";
 import { mediaRoutes, mediaRoot } from "./domains/media.js";
+import { buildRadarRoutes } from "./domains/buildradar.js";
+import { investRoutes } from "./domains/invest.js";
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
   const configured = (process.env.WEB_ORIGIN || "http://localhost:3000")
@@ -102,7 +104,7 @@ export async function buildApp(
       if (isOriginAllowed(origin)) {
         cb(null, true);
       } else {
-        cb(new Error("CORS origin denied"), false);
+        cb(new AppError(403, "ORIGIN_REJECTED", "Request origin is not allowed."), false);
       }
     },
     credentials: true,
@@ -270,6 +272,8 @@ export async function buildApp(
       await mediaRoutes(api);
       await messageRoutes(api);
       await adminRoutes(api);
+      await buildRadarRoutes(api);
+      await investRoutes(api);
     },
     { prefix: "/api" },
   );

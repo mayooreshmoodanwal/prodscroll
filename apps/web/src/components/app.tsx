@@ -17,6 +17,8 @@ import {
   Shield,
   BriefcaseBusiness,
   Search,
+  Radar,
+  TrendingUp,
 } from "lucide-react";
 import { API_URL } from "../lib/api";
 import { useApp } from "../lib/context";
@@ -31,8 +33,12 @@ import { ProfilePage, StartupPage, ProductPage } from "./profiles";
 import { CreatePage, FounderPage } from "./create";
 import { Inbox } from "./inbox";
 import { NotificationsPage, SettingsPage, AdminPage } from "./account";
+import { BuildRadarPage } from "./buildradar";
+import { InvestPage } from "./invest";
 const nav = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/buildradar", label: "BuildRadar", icon: Radar },
+  { href: "/invest", label: "Invest", icon: TrendingUp },
   { href: "/explore", label: "Explore", icon: Compass },
   { href: "/following", label: "Following", icon: Users },
   { href: "/reels", label: "Product reels", icon: Clapperboard },
@@ -42,6 +48,10 @@ const nav = [
 ];
 function Route() {
   const path = usePathname();
+  if (path === "/buildradar" || path.startsWith("/buildradar"))
+    return <BuildRadarPage />;
+  if (path === "/invest" || path.startsWith("/invest"))
+    return <InvestPage />;
   if (path === "/reels") return <Reels />;
   if (path === "/explore") return <ExplorePage />;
   if (path === "/saved") return <SavedPage />;

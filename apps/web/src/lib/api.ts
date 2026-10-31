@@ -54,7 +54,7 @@ export function ago(value: string) {
     day: "numeric",
   });
 }
-export function safeUrl(value?: string) {
+export function safeUrl(value?: string | null) {
   if (!value) return undefined;
   if (value.startsWith("data:") || value.startsWith("blob:")) return value;
   try {

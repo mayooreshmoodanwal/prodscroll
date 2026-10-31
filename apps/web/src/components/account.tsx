@@ -222,7 +222,7 @@ export function SettingsPage() {
                   <input
                     name="location"
                     maxLength={100}
-                    defaultValue={user.location}
+                    defaultValue={user.location || ""}
                   />
                 </label>
                 <label>
@@ -230,7 +230,7 @@ export function SettingsPage() {
                   <input
                     name="website"
                     type="url"
-                    defaultValue={user.website}
+                    defaultValue={user.website || ""}
                   />
                 </label>
               </div>

@@ -3,7 +3,7 @@ export interface User {
   username: string;
   displayName: string;
   bio?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   role: "USER" | "FOUNDER" | "MODERATOR" | "ADMIN";
   onboarded: boolean;
   verified: boolean;
@@ -12,8 +12,8 @@ export interface User {
   followingCount?: number;
   postCount?: number;
   following?: boolean;
-  location?: string;
-  website?: string;
+  location?: string | null;
+  website?: string | null;
   privateAccount?: boolean;
   activityVisible?: boolean;
   messageControl?: string;
@@ -141,4 +141,165 @@ export interface SocketEvent {
   userId?: string;
   typing?: boolean;
   notification?: Notification;
+}
+
+export interface BuildDnaDTO {
+  id: string;
+  userId: string;
+  postId?: string | null;
+  startupId?: string | null;
+  sourceType: string;
+  projectDomains: string[];
+  technicalSkills: string[];
+  technologies: string[];
+  projectStage: string;
+  skillsOffered: string[];
+  skillsNeeded: string[];
+  collaborationInterest: boolean;
+  currentBlockers: string[];
+  interests: string[];
+  projectDescription: string;
+  modelVersion: string;
+  createdAt: string;
+}
+
+export interface RelevantProjectDTO {
+  id: string;
+  title: string;
+  caption: string;
+  tags: string[];
+  startupName?: string;
+}
+
+export interface RecommendationEvidenceDTO {
+  sharedDomains?: string[];
+  offeredMatchesNeeded?: Array<{ need: string; matchedBy: string }>;
+  matchingSkills?: string[];
+  complementarySkills?: string[];
+  sourcePostId?: string;
+  sourcePostCaption?: string;
+  quote?: string;
+}
+
+export interface BuilderRecommendationDTO {
+  id: string;
+  category: "COMPLEMENTARY" | "SIMILARITY";
+  score: number;
+  matchingSkills: string[];
+  complementarySkills: string[];
+  relevantProjects: RelevantProjectDTO[];
+  explanation: string;
+  evidence: RecommendationEvidenceDTO;
+  suggestedBuilder: User;
+  createdAt: string;
+}
+
+export interface BuildRadarOverviewDTO {
+  myBuildDna: BuildDnaDTO | null;
+  forYou: BuilderRecommendationDTO[];
+  collaborators: BuilderRecommendationDTO[];
+  projectRecommendations: Array<{
+    post: Post;
+    relevanceScore: number;
+    reason: string;
+    matchingSkills: string[];
+  }>;
+  opportunityRadar: BuilderRecommendationDTO[];
+  stats: {
+    analyzedBuildersCount: number;
+    collaborationOpportunitiesCount: number;
+    aiModel: string;
+    aiStatus: "online" | "degraded" | "heuristic_fallback";
+  };
+}
+
+export interface DemoStartupUpdateDTO {
+  id: string;
+  startupId: string;
+  title: string;
+  body: string;
+  updateType: string;
+  date: string;
+}
+
+export interface DemoStartupDTO {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  country: string;
+  countryCode: "NZ" | "US" | "MY" | string;
+  currency: string;
+  currencySymbol: string;
+  industry: string;
+  stage: string;
+  businessModel: string;
+  technologies: string[];
+  founderName: string;
+  founderBio: string;
+  logoUrl?: string | null;
+  coverUrl?: string | null;
+  website?: string | null;
+  targetMarket: string;
+  demoTargetAmount: number;
+  demoRaisedAmount: number;
+  demoMinTicket: number;
+  demoPreMoneyValuation: number;
+  demoPostMoneyValuation: number;
+  featured: boolean;
+  published: boolean;
+  createdAt: string;
+  updates?: DemoStartupUpdateDTO[];
+  isWatchlisted?: boolean;
+  hasSimulatedPosition?: boolean;
+}
+
+export interface SimulatedPositionDTO {
+  id: string;
+  userId: string;
+  startupId: string;
+  startup: DemoStartupDTO;
+  hypotheticalAmount: number;
+  currency: string;
+  illustrativeEquityPercent: number;
+  notes: string;
+  createdAt: string;
+}
+
+export interface SimulatedActivityDTO {
+  id: string;
+  userId: string;
+  startupId: string;
+  startupName: string;
+  action: string;
+  amount?: number | null;
+  details: string;
+  createdAt: string;
+}
+
+export interface SimulatedPortfolioDTO {
+  totalSimulatedAllocated: number;
+  positionsCount: number;
+  positions: SimulatedPositionDTO[];
+  distributionByIndustry: Record<string, number>;
+  distributionByCountry: Record<string, number>;
+  watchlist: DemoStartupDTO[];
+  recentActivity: SimulatedActivityDTO[];
+}
+
+export interface MarketEvaluationDTO {
+  countryCode: "NZ" | "US" | "MY";
+  countryName: string;
+  currency: string;
+  currencySymbol: string;
+  status: "Under evaluation — not an available investment market";
+  marketOverview: string;
+  potentialOpportunity: string;
+  startupEcosystem: string;
+  regulatoryResearchTopics: string[];
+  licensingConsiderations: string[];
+  currentResearchStatus: string;
+  outstandingQuestions: string[];
+  sampleStartupsCount: number;
 }

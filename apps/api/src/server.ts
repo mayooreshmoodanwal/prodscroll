@@ -36,7 +36,7 @@ try {
 }
 
 await app.listen({
-  port: Number(process.env.PORT || process.env.API_PORT || 4000),
+  port: Number(process.env.API_PORT || 4000),
   host: process.env.API_HOST || "0.0.0.0",
 });
 for (const signal of ["SIGINT", "SIGTERM"])

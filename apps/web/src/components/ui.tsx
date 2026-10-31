@@ -9,7 +9,7 @@ export function Avatar({
   size = 40,
 }: {
   name: string;
-  url?: string;
+  url?: string | null;
   size?: number;
 }) {
   return (
@@ -102,7 +102,7 @@ export function ExternalLink({
   href,
   children,
 }: {
-  href?: string;
+  href?: string | null;
   children: ReactNode;
 }) {
   const url = safeUrl(href);

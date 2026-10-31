@@ -46,17 +46,10 @@ beforeAll(async () => {
     expect(response.statusCode).toBe(201);
     const result = response.json();
     ids.push(result.user.id);
-    const identity = {
-      id: result.user.id,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-    };
-    if (index === 0) a = identity;
-    else b = identity;
     const verify = token();
     await db.authToken.create({
       data: {
-        userId: identity.id,
+        userId: result.user.id,
         tokenHash: hash(verify),
         purpose: "VERIFY",
         expiresAt: new Date(Date.now() + 60000),
@@ -65,6 +58,21 @@ beforeAll(async () => {
     expect(
       (await call("POST", "/auth/verify-email", { token: verify })).statusCode,
     ).toBe(200);
+
+    const loginRes = await call("POST", "/auth/login", {
+      email: `qa_${suffix}_${index}@example.com`,
+      password: "CorrectHorseBattery42!",
+    });
+    expect(loginRes.statusCode).toBe(200);
+    const loginData = loginRes.json();
+
+    const identity = {
+      id: result.user.id,
+      accessToken: loginData.accessToken,
+      refreshToken: loginData.refreshToken,
+    };
+    if (index === 0) a = identity;
+    else b = identity;
   }
 });
 afterAll(async () => {

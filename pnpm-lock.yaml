@@ -97,6 +97,9 @@ importers:
       '@productscroll/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@productscroll/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@productscroll/validation':
         specifier: workspace:*
         version: link:../../packages/validation
