@@ -103,3 +103,4 @@ Server packages execute TypeScript with `tsx`; `build` validates them without em
 - [R2_SETUP.md](R2_SETUP.md): private R2 upload and delivery setup.
 - [SCALABILITY_REVIEW.md](SCALABILITY_REVIEW.md): measured capacity, limits, and upgrade path.
 - [VALIDATION.md](VALIDATION.md): tested behavior and remaining verification.
+# ProductScrollGemma
